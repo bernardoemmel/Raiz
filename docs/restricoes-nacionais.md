@@ -51,6 +51,17 @@ histórico de infração.
   `raiz restricoes recalcular [--ufs PA] [--municipios 1507300]`.
 - O CAR completo (todos os tipos) vem do CAR nacional (`raiz/coleta/car_nacional.py`); o funil guarda só o imóvel rural.
 
+## No lote
+
+- **Lote nacional** (`raiz/restauracao_nacional.py`, `lote-nacional.yml`): o índice traz `restricao_nacional`,
+  `restricao_exclusao`, `restricao_ressalva` e `restricao_motivos` (nulo = não verificado). A rodada refaz
+  `restricoes_<mun>.csv` que falte ou esteja velho (`completar_restricoes`, com a coleta do Release `insumos`), a
+  consulta tira as exclusões (o motivo vai para a decisão gravada), conta ressalvas e não verificadas em cada opção e
+  devolve `restricoes_nacionais` com `verificada`, `parcial` ou `nao_verificada` e os motivos agregados (sem CAR).
+- **Dossiê do município** (`raiz/dossie_lote.py`, `docs/lote.md`): exclusão sai em qualquer modo; ressalva entra com
+  peso (forte: borda de Lista Suja ou lavra, território tradicional na borda, auto de Flora recente, CAR suspenso;
+  leve: RL/APP de outro CAR; o resto, média). Sem verificação: ressalva média, nunca "livre".
+
 ## Pendências conhecidas
 
 - **RL e APP declaradas**: a base de downloads do SICAR fica atrás de captcha. O pedido de LAI 02303.031114/2026-60

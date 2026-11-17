@@ -102,6 +102,13 @@ def _regras_pedido(
     )
     if "ja_comprometida" in camadas:  # camada "já comprometida" presente no catálogo: sai do lote
         f.append(("Terra já comprometida com outro projeto ou contrato", "not coalesce(ja_comprometida, false)"))
+    if "restricao_exclusao" in camadas:  # restrições nacionais presentes no catálogo: exclusão sai do lote
+        f.append(
+            (
+                "Restrição nacional: Lista Suja, lavra mineral ou território tradicional",
+                "not coalesce(restricao_exclusao, false)",
+            )
+        )
     if "gleba_federal" in camadas and pedido.gleba_federal == "excluir":
         f.append(
             (
@@ -385,6 +392,53 @@ def _terra_em_espera(con, pedido, modelo, cenario, comercializaveis, sobreposica
     }
 
 
+def _restricoes(con, colunas):
+    """Restrições nacionais (raiz/restricoes) sobre o recorte: exclusões que saíram, ressalvas e não verificadas.
+
+    Só contagens e motivos agregados (sem CAR, nome ou documento). Ausência da camada nunca vira terra livre.
+    """
+    aviso_nv = (
+        "Restrições nacionais não verificadas: o catálogo ainda não traz SICAR completo, SIGMINE, autos do Ibama e "
+        "Lista Suja. Ausência de indício não é terra livre; conferir antes de contratar."
+    )
+    if "restricao_exclusao" not in colunas:
+        return {"situacao": "nao_verificada", "aviso": aviso_nv}
+    exc, res, nv, total = con.sql(
+        "select count(*) filter(where coalesce(restricao_exclusao,false)), "
+        "count(*) filter(where coalesce(restricao_ressalva,false)), "
+        "count(*) filter(where restricao_exclusao is null), count(*) from recorte"
+    ).fetchone()
+    motivos = con.sql(
+        "select m, count(*) n from (select unnest(string_split(restricao_motivos, '|')) m from recorte "
+        "where restricao_motivos is not null) group by m order by n desc, m"
+    ).fetchall()
+    situacao = "nao_verificada" if total and nv == total else ("parcial" if nv else "verificada")
+    out = {
+        "situacao": situacao,
+        "excluidas": int(exc),
+        "ressalvas": int(res),
+        "nao_verificadas": int(nv),
+        "motivos": {str(m): int(n) for m, n in motivos},
+        "aviso": "Fazendas com exclusão (Lista Suja, lavra, território tradicional) saíram do lote; as ressalvas "
+        "ficam marcadas com o motivo para a validação humana.",
+    }
+    if situacao == "nao_verificada":
+        out["aviso"] = aviso_nv
+    elif situacao == "parcial":
+        out["aviso"] += f" {int(nv)} fazendas do recorte sem verificação completa: conferir antes de contratar."
+    return out
+
+
+def _restricoes_escolhidos(con, colunas) -> dict:
+    if "restricao_exclusao" not in colunas:
+        return {"marcadas_restricao_ressalva": None, "restricao_nao_verificadas": None}
+    res, nv = con.sql(
+        "select count(*) filter(where coalesce(restricao_ressalva,false)), "
+        "count(*) filter(where restricao_exclusao is null) from escolhidos"
+    ).fetchone()
+    return {"marcadas_restricao_ressalva": int(res), "restricao_nao_verificadas": int(nv)}
+
+
 def _sobreposicao(con, colunas, selecionadas_sql="escolhidos"):
     """Situação da camada 'já comprometida' sobre o catálogo desta consulta.
 
@@ -663,7 +717,7 @@ def montar_tres_opcoes(
         _espacial(con, pedido)
         colunas = {r[0] for r in con.sql("describe oferta").fetchall()}
         com_camada = "ja_comprometida" in colunas
-        camadas = frozenset(colunas & {"ja_comprometida", "gleba_federal"})
+        camadas = frozenset(colunas & {"ja_comprometida", "gleba_federal", "restricao_exclusao"})
         filtro = _filtro_pedido(pedido, modelo, cenario, somente_comercializaveis, camadas)
         con.sql(f"CREATE TEMP VIEW elegiveis AS SELECT * FROM recorte WHERE {filtro}")
         cobertura = _cobertura(catalogo_dados, recorte, con, modelo, cenario)
@@ -671,6 +725,7 @@ def montar_tres_opcoes(
         terra_em_espera = _terra_em_espera(con, pedido, modelo, cenario, somente_comercializaveis, camadas)
         gleba = _gleba_federal(con, colunas, pedido)
         sobreposicao = _sobreposicao(con, colunas)
+        restricoes = _restricoes(con, colunas)
         t = time.monotonic()
         pontos = con.sql("select cod_imovel,lon,lat,pequena,local_aproximado from elegiveis").fetchdf()
         agrupados = S.agrupar_oferta(
@@ -774,6 +829,7 @@ def montar_tres_opcoes(
                 sobreposicao_situacao=sobreposicao["situacao"],
                 marcadas_risco_sobreposicao=marcadas,
                 sobreposicao_nao_verificadas=sem_verificar,
+                **_restricoes_escolhidos(con, colunas),
                 marcadas_gleba_federal=(
                     int(
                         con.sql(
@@ -832,6 +888,7 @@ def montar_tres_opcoes(
         "terra_em_espera": terra_em_espera,
         "sobreposicao": sobreposicao,
         "gleba_federal": gleba,
+        "restricoes_nacionais": restricoes,
         "tempos": tempos,
         "cronograma_contratual_validado": regra is not None,
         "aviso": "Planejamento sobre cobertura disponível. Consulte os marcos e pendências antes de contratar. "
