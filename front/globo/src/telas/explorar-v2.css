@@ -155,7 +155,7 @@
   .filtros-mapa-posicao .legenda-mapa { display: grid; gap: 10px; }
 }
 .explorar-v2 .cartografia-ajuda { left: auto; right: 64px; top: 16px; bottom: auto; }
-@media (max-width: 700px) { .explorar-v2 .cartografia-ajuda { display: none; } }
+@media (max-width: 700px) { .explorar-v2 .cartografia-ajuda { left: 10px; right: auto; top: 62px; bottom: auto; } }
 @media (min-width: 701px) {
   .explorar-v2:not(.com-pedido) .cartao-v2-posicao { top: 16px; right: 60px; bottom: auto; left: auto; width: 360px; }
   .explorar-v2:not(.com-pedido) .cartao-territorio-v2 { padding: 18px 20px; }

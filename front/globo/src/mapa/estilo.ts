@@ -69,6 +69,8 @@ export function camadasBaseNacionais(): LayerSpecification[] {
     // O container já tem exatamente a cor do chão. Evita um draw redundante enquanto tiles chegam.
     if (camada.type === "background") return { ...camada, paint: { ...camada.paint, "background-opacity": 0 } }
     if (camada.type === "fill") return { ...camada, paint: { ...camada.paint, "fill-antialias": false } }
+    // Nomes de cidades só a partir do enquadramento do computador; no celular o país abre mais leve.
+    if (camada.id === "places_locality") return { ...camada, minzoom: Math.max(camada.minzoom ?? 0, 3.3) }
     if (camada.type === "line") {
       const paint = { ...camada.paint }
       delete paint["line-dasharray"]

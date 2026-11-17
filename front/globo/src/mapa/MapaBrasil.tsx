@@ -1140,11 +1140,11 @@ export function MapaBrasil(props: Props) {
       {brasil && <details className="cartografia-ajuda">
         <summary>Como ler o mapa</summary>
         {zoom < ZOOM_FAZENDAS ? <>
-          <p>Hexágonos somam fazendas cadastradas. Verde mais claro representa maior valor; não é uma avaliação da qualidade da terra. Toque para aproximar.</p>
+          <p>Cada círculo soma as fazendas do filtro nos municípios daquela região; o número de baixo são os hectares. Não é uma avaliação da qualidade da terra. Toque para aproximar.</p>
           {props.agregados?.metadados.contagens.celulas ? <>
             <p>{props.agregados.metadados.aviso}</p><p>Fonte: {props.agregados.metadados.fonte}. Atualização: {props.agregados.metadados.atualizado_em ? new Date(props.agregados.metadados.atualizado_em).toLocaleDateString("pt-BR") : "não informada"}.</p>
             <details onToggle={e => { listaHexagonosAberta.current = e.currentTarget.open; if (e.currentTarget.open) setHexagonosLista(hexagonosAtuais.current) }}>
-              <summary>Explorar hexágonos com teclado</summary>
+              <summary>Explorar regiões com teclado</summary>
               <ul className="cartografia-hexagonos-lista">{hexagonosLista.map(hex => <li key={hex.h3}><button type="button" onClick={() => { if (mapaRef.current) aproximarHexagono(mapaRef.current, hex) }}>{descreverHexagono(hex)} Aproximar.</button></li>)}</ul>
             </details>
           </> : <p>Agregados ainda não publicados. A ausência não significa área zero.</p>}
