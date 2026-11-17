@@ -61,6 +61,16 @@ Vem do caminho da terra (`raiz/terra.py`): sem parcela no SIGEF, vale a cobertur
 (`matricula_ha`), e a falta de SIGEF não vira posse. Imóvel só certificado no SIGEF (posse ou titulação, sem registro)
 ganha a ressalva "pedir inteiro teor".
 
+## Restrições nacionais
+
+SICAR completo, SIGMINE, autos do Ibama e Lista Suja (`restricoes_<mun>.csv`, critérios em
+`docs/restricoes-nacionais.md`). Exclusão (infrator da Lista Suja com auto ou embargo no imóvel, lavra mineral,
+território tradicional sobreposto) tira do lote em qualquer modo. Ressalva fica no lote com o texto do motivo: forte
+para borda de Lista Suja ou de lavra, território tradicional na borda, auto de Flora do Ibama nos últimos 5 anos e CAR
+suspenso; leve para RL ou APP declarada por outro CAR; média para o resto (pesquisa mineral, auto do Ibama, CAR
+sobreposto, assentamento, CAR pendente). Sem o arquivo, a fazenda leva "restrições nacionais não verificadas" (média).
+Pesos em `raiz/regras/padroes/dossie_lote.yaml` (`restricoes`).
+
 ## Lotes
 
 Por vizinhança do centróide do CAR: o maior imóvel apto ainda solto abre um lote e entram todos a até 12 km dele. Imóveis

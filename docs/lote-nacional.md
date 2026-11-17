@@ -46,6 +46,11 @@ pacote do estado não traz ou traz coleta velha). A consulta tira `ja_comprometi
 decisão), conta `risco_sobreposicao` e as não verificadas em cada opção e diz `verificada`, `parcial` ou
 `nao_verificada`. Fazenda sem status fica nula, nunca livre. Detalhes em `docs/terra-comprometida.md`.
 
+As restrições nacionais (SICAR completo, SIGMINE, autos do Ibama, Lista Suja) seguem o mesmo caminho a partir de
+`restricoes_<mun>.csv`: a rodada refaz o que falta, a consulta tira `restricao_exclusao`, conta as ressalvas e as não
+verificadas em cada opção e devolve `restricoes_nacionais` (situação e motivos agregados). Detalhes em
+`docs/restricoes-nacionais.md`.
+
 Ordem de publicação: bioma Amazônia, estados da Amazônia Legal, demais estados, demais biomas e Brasil. O ponteiro guarda,
 por consulta, um `resumo` sem CAR (as três opções, a terra em espera e a sobreposição). O passo final do workflow roda
 `python -m raiz.restauracao_nacional_rodada --conferir`: acusa UF, bioma ou Brasil sem consulta, consulta sem as três

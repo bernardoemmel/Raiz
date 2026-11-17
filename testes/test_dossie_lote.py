@@ -35,6 +35,7 @@ def _linha(cod, **kw):
         "assentamento_ha": 0,
         "caminho_terra": "privada_matricula",
         "terra_gleba_federal_ha": 0.0,
+        "restricao_nacional": "livre",
     }
     base.update(kw)
     return base
@@ -185,3 +186,17 @@ def test_paragominas_quatro_cars_reais():
         e, n = D.avaliar(li, carb[c], "estrito"), D.avaliar(li, carb[c], "normal")
         assert n["no_lote"]
         assert e["no_lote"] is (a != "A5BAFA27")
+
+
+def test_restricoes_nacionais_no_dossie():
+    r = D.regra()
+    fora = D.avaliar(_linha("PA-1-A", restricao_nacional="exclusao", restricao_motivos="lista_suja"), None, "normal", r)
+    assert not fora["no_lote"] and any("Lista Suja" in t for t in fora["fora"])
+    forte = D.avaliar(
+        _linha("PA-1-B", restricao_nacional="ressalva", restricao_motivos="car_suspenso|ibama_auto"), None, "normal", r
+    )
+    assert forte["no_lote"] and forte["prontidao"] == "baixa"
+    assert any("suspenso" in t for t in forte["ressalvas_fortes"])
+    assert any("Ibama" in t for t in forte["ressalvas_medias"])
+    sem = D.avaliar(_linha("PA-1-C", restricao_nacional=None), None, "normal", r)
+    assert sem["no_lote"] and any("não verificadas" in t for t in sem["ressalvas_medias"])  # nunca "livre"

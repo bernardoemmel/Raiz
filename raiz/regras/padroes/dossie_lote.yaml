@@ -1,7 +1,7 @@
 # Dossiê executivo do lote por município (raiz/dossie_lote.py): os filtros e limiares que o Bot Agro aplicava na mão
 # em Paragominas (17/11/2026), agora em código. Não muda a ciência do funil: só filtra e formata o que já foi calculado.
 # Mudou este arquivo, muda a versão gravada no dossiê.
-versao: dossie-lote-2026a
+versao: dossie-lote-2026b
 
 # Área abaixo disto é ruído de borda entre polígonos (100 m²), não sobreposição real.
 tolerancia_ha: 0.01
@@ -32,6 +32,14 @@ carbono:
   # ARR agrupados com KML regional (a área do KML é a região inteira, não a fazenda): risco a conferir
   agrupados_regionais: [VCS4137, VCS5184, VCS3380, VCS3713, VCS4849]
   situacoes_inativas: [retirado, encerrado, inativo, cancelado, rejeitado]
+
+# Restrições nacionais (restricoes_<mun>.csv, raiz/restricoes/status.py; critérios em docs/restricoes-nacionais.md).
+# Exclusão (Lista Suja, lavra, território tradicional) sempre tira do lote, em qualquer modo. Ressalva entra com o peso
+# abaixo; motivo fora da lista vale média. Sem o arquivo ou "nao_verificado": ressalva média "não verificadas".
+restricoes:
+  fortes: [lista_suja_borda, mineracao_lavra_borda, territorio_tradicional_borda, ibama_auto_flora_recente,
+           car_suspenso]
+  leves: [rl_app_alheia]
 
 # Lotes por vizinhança (centróide do CAR). Nenhum imóvel sai por tamanho: pequenas entram no lote mais próximo.
 lotes:
