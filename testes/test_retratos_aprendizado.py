@@ -101,6 +101,32 @@ def test_executor_sem_banco_captura_chamada_real_e_nao_redata_saida_pronta(tmp_p
     assert list(spool.rglob("*.json.gz")) == arquivos
 
 
+def test_executor_sem_banco_retrato_recusado_nao_derruba_o_municipio(tmp_path, monkeypatch):
+    """Reprocessamento de 17/11: a trava de privacidade do retrato derrubava o funil de todos os municípios."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(RD, "_R", SimpleNamespace())
+    monkeypatch.setattr(RD, "_engine", lambda *a: pytest.fail("conectou ao banco"))
+    spool = tmp_path / "retratos"
+    monkeypatch.setenv("RAIZ_HISTORICO_DIR", str(spool))
+    pasta = tmp_path / "saida" / "PA"
+    pasta.mkdir(parents=True)
+    contato = "teste@exemplo.invalid"
+    pd.DataFrame([{"cod_imovel": contato, "ha": 0.3, "alem_RL_ha": 0.3, "uf": "PA", "bioma": "Amazônia"}]).to_csv(
+        pasta / f"imoveis_{MUNICIPIO}.csv", index=False
+    )
+    pd.DataFrame([{"cod_imovel": contato, "mb_pasto_2023_ha": 0.2}]).to_csv(
+        pasta / f"mapbiomas_{MUNICIPIO}.csv", index=False
+    )
+    detalhes = []
+    original = RD._guardar_retrato
+    monkeypatch.setattr(RD, "_guardar_retrato", lambda *a: detalhes.append(original(*a)) or detalhes[-1])
+    op = RD.Opcoes("PA", tarefas=("flag",), banco=False)
+    assert RD.rodar_municipio(MUNICIPIO, op, Healthchecks()) == {"flag": "sucesso"}
+    assert detalhes and detalhes[0]["situacao"] == "retrato_recusado"
+    assert contato not in str(detalhes)
+    assert not list(spool.rglob("*.json.gz"))
+
+
 @pytest.mark.banco
 def test_importacao_fora_de_ordem_preserva_futuro_retirada_e_deduplicacao(con, tmp_path, monkeypatch):
     esquema = "retratos_" + uuid.uuid4().hex[:8]
