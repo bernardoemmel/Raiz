@@ -1061,8 +1061,14 @@ class ArmazemRelease:
             except ValueError:
                 return 0.0
 
+        from raiz.executor.reprocessamento import decidir
+
+        status = (self.publico.status_reprocessamento() if self.publico else {}).get("estados", {})
+
         def atrasado(uf: str, e: dict) -> bool:
             publicado = aberto.get(uf) or {}
+            if not decidir(e, aberto.get(uf), status.get(uf))["publicar"]:
+                return False  # estado em reprocessamento: o aberto fica como está até fechar (sem baixar nada)
             return quando(e) - quando(publicado) > margem_s or (e.get("municipios") or 0) > publicado.get(
                 "municipios", 0
             )
@@ -1094,12 +1100,28 @@ class ArmazemRelease:
                     self.local = original
         return {"uf": uf, "municipios": info.get("municipios")}
 
-    def _publicar_aberto(self, uf: str, info: dict, *, catalogar: bool = True) -> None:
+    def _publicar_aberto(self, uf: str, info: dict, *, catalogar: bool = True, regras: bool = True) -> None:
+        """Projeção aberta do estado. Com `regras` (padrão), segue o reprocessamento progressivo
+        (raiz/executor/reprocessamento.py): estado sendo refeito com regras diferentes das que estão no ar fica
+        congelado no aberto até fechar; só o reprocessamento.json público recebe o andamento."""
         from raiz.executor.publicacao_aberta import ESCOPO, entrada_publica, projetar_csvs, projetar_geo
 
         aberto = self.publico
         if aberto is None or aberto.privado:
             raise ValueError("destino aberto inválido")
+        decisao = None
+        if regras:
+            from raiz.executor.reprocessamento import decidir
+
+            if not isinstance(info.get("reprocessamento"), dict):
+                info = {**info, "reprocessamento": self._avaliar_reprocessamento(uf)}
+            no_ar = aberto.manifesto(fresco=True).get("estados", {}).get(uf)
+            decisao = decidir(info, no_ar, aberto.status_reprocessamento().get("estados", {}).get(uf))
+            if not decisao["publicar"]:
+                log.info("%s: reprocessamento em andamento (%s); o aberto continua com os dados que estão no ar",
+                         uf, decisao["status"])  # fmt: skip
+                aberto.gravar_status_reprocessamento(uf, decisao["status"])
+                return
         csvs, geos = {}, {}
         for chave in self.local.listar(f"saida/{uf}/"):
             nome = chave.rsplit("/", 1)[1]
@@ -1129,6 +1151,54 @@ class ArmazemRelease:
                 from raiz.catalogo_publico import catalogar_publico
 
                 catalogar_publico(aberto, uf)
+        if decisao is not None:
+            aberto.gravar_status_reprocessamento(uf, decisao["status"])
+
+    def _avaliar_reprocessamento(
+        self, uf: str, marcas: dict | None = None, completo: bool | None = None
+    ) -> dict | None:
+        """Quantos municípios do estado já têm todas as tarefas na versão deste código (lê as marcas do espelho)."""
+        try:
+            from raiz.executor import tarefas as T
+            from raiz.executor.reprocessamento import avaliar
+
+            if marcas is None:
+                marcas = {k.rsplit("/", 1)[1][:-5]: json.loads(self.local.ler(k))
+                          for k in self.local.listar(f"marcas/{uf}/")}  # fmt: skip
+            if completo is None:
+                vazios = {c for c, m in marcas.items() if ((m.get("tarefas") or {}).get("funil") or {}).get("vazio")}
+                completo = bool(_situacao(self.local.raiz / "saida" / uf, uf, vazios).get("completo"))
+            versoes = {n: T.versao(n) for n in T.DEPENDE}
+            return avaliar(lambda cod: marcas.get(str(cod)), T.municipios_da_uf(uf), versoes, completo)
+        except Exception as ex:  # noqa: BLE001 - sem avaliação o aberto só é trocado se as regras forem as mesmas
+            log.warning("%s: não avaliei o reprocessamento (%s)", uf, type(ex).__name__)
+            return None
+
+    def status_reprocessamento(self) -> dict:
+        """O reprocessamento.json do destino (aberto), ou {} se ainda não existe ou não pôde ser lido."""
+        from raiz.executor.reprocessamento import NOME_PUBLICO
+
+        try:
+            dados = self._baixar_asset(NOME_PUBLICO, fresco=True)
+            return json.loads(dados) if dados else {}
+        except Exception as ex:  # noqa: BLE001 - o andamento é informativo; a decisão segura não depende dele
+            log.warning("reprocessamento.json ilegível (%s)", type(ex).__name__)
+            return {}
+
+    def gravar_status_reprocessamento(self, uf: str, status: dict) -> None:
+        """Troca só a linha da UF no reprocessamento.json, dentro de uma trava própria; não toca nos pacotes."""
+        from raiz.executor.reprocessamento import NOME_PUBLICO, montar_status_publico, mudou
+
+        if self.privado:
+            raise ValueError("o andamento do reprocessamento é público e vai só para o destino aberto")
+        try:
+            with self._trava("trava-reprocessamento", self.ESPERA_TRAVA_UF_S):
+                atual = self.status_reprocessamento()
+                if not mudou((atual.get("estados") or {}).get(uf), status):
+                    return
+                self._subir(self._release(), NOME_PUBLICO, montar_status_publico(atual, uf, status), "application/json")
+        except Exception as ex:  # noqa: BLE001 - não derruba a publicação por causa do painel de andamento
+            log.warning("%s: não gravei o andamento do reprocessamento (%s)", uf, type(ex).__name__)
 
     def _publicar_uf(self, u: str, extra: dict) -> dict:
         import datetime as dt
@@ -1220,6 +1290,8 @@ class ArmazemRelease:
             controle=self.url(f"raiz_controle_{u}.json"),
         )
         info.update(extra)
+        if (avaliacao := self._avaliar_reprocessamento(u, marcas, bool(sit.get("completo")))) is not None:
+            info["reprocessamento"] = avaliacao
         if isinstance(est.get("processamento"), dict):
             info["processamento"] = est["processamento"]
         else:

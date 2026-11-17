@@ -1,0 +1,39 @@
+# Fontes estaduais de RR. Testado em 17/11/2026: iteraima.rr.gov.br e femarh.rr.gov.br não entregam dado desta nuvem. As glebas que a União
+# transferiu ao estado aparecem como floresta pública estadual no CNFP 2025 (automático) e, quando certificadas,
+# no SIGEF (nacional).
+uf: RR
+verificado_em: "2026-11-17"
+fontes:
+  - id: rr_glebas_transferidas
+    nome: Glebas da União transferidas a Roraima (Lei 10.304/2001 e Decreto 6.754/2009)
+    tema: terra_devoluta
+    orgao: ITERAIMA
+    acesso: bloqueado_fora_brasil
+    tipo: pendente
+    url: https://iteraima.rr.gov.br/
+    efeito: conferir
+    motivo: gleba_transferida_a_conferir
+    criterio: >-
+      Imóvel em gleba transferida pela União ao estado = ressalva até o título estadual (a posse não tem título;
+      regularização no órgão de terras do estado). Sem camada: item do checklist de todo imóvel de RR.
+    lgpd: —
+    situacao: {testado_em: "2026-11-17", resultado: "iteraima.rr.gov.br: sem resposta útil desta nuvem"}
+    alternativa: rr_glebas_estaduais_cnfp (CNFP 2025) e glebas públicas do SIGEF (nacional); LAI ao ITERAIMA.
+
+  - id: rr_glebas_estaduais_cnfp
+    nome: Florestas públicas estaduais não destinadas (CNFP 2025)
+    tema: terra_devoluta
+    orgao: SFB (CNFP), com dado do ITERAIMA
+    acesso: aberto
+    tipo: cnfp
+    url: https://www.gov.br/florestal/pt-br/assuntos/cadastro-nacional-de-florestas-publicas
+    geometria: poligono
+    manter: [categoria, tipo, governo, orgao, protecao]
+    efeito: ressalva
+    motivo: gleba_estadual
+    criterio: >-
+      Floresta pública estadual não destinada (tipo B, governo estadual) acima do limiar = ressalva: posse em terra
+      do estado; o caminho é a regularização no ITERAIMA. Inclui as glebas transferidas pela União já cadastradas no CNFP.
+    lgpd: Sem dado pessoal.
+    licenca: Dado aberto do governo federal (Decreto 8.777/2016).
+    situacao: {testado_em: "2026-11-17", resultado: "ok (CNFP 2025 do SFB, abre de fora do Brasil)"}

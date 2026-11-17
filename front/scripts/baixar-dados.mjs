@@ -6,6 +6,7 @@ import os from "node:os"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { lerProcessamentoPublicado } from "../compartilhado/dados/processamento-publicado.ts"
+import { lerReprocessamento } from "../compartilhado/dados/reprocessamento.ts"
 import { municipiosDoEstado } from "../compartilhado/ibge-municipios.ts"
 
 const RAIZ_REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
@@ -165,6 +166,22 @@ function pastaConforme(uf, info) {
     arquivoPermitido(`${uf}/${f.name}`, uf, false) || (info.geo && arquivoPermitido(`${uf}/${f.name}`, uf, true))
   ))
 }
+/** Andamento do reprocessamento estado por estado (docs/reprocessamento-progressivo.md). Opcional: sem ele, o site
+ * mostra todos os estados como "regras antigas". Falha de rede preserva o arquivo anterior; 404 o retira. */
+async function baixarReprocessamento() {
+  const destino = path.join(DESTINO, "reprocessamento.json")
+  try {
+    const bytes = await baixarBytes(`${URL_BASE}/reprocessamento.json`, "andamento do reprocessamento")
+    const doc = lerReprocessamento(JSON.parse(new TextDecoder().decode(bytes)))
+    if (!doc) throw new Error("reprocessamento.json fora do contrato público")
+    fs.mkdirSync(DESTINO, { recursive: true })
+    fs.writeFileSync(destino, JSON.stringify({ escopo: "publico_basico", versao_publicacao: 1, ...doc }, null, 1))
+  } catch (e) {
+    if (/HTTP 404/.test(e.message)) fs.rmSync(destino, { force: true })
+    else console.warn(`[dados] andamento do reprocessamento indisponível (${e.message}); mantenho o anterior`)
+  }
+}
+
 async function main() {
   if (process.env.RAIZ_SEM_DOWNLOAD === "1") return
   let remoto
@@ -237,6 +254,7 @@ async function main() {
     fs.mkdirSync(DESTINO, { recursive: true })
     fs.writeFileSync(arqLocal, JSON.stringify({ ...remoto, estados: local.estados }, null, 1))
   }
+  await baixarReprocessamento()
   if (exigir && falhas.length) throw new Error(`não consegui atualizar os estados: ${falhas.join(", ")}`)
   console.log(`[dados] pacotes públicos em ${path.relative(RAIZ_REPO, DESTINO) || DESTINO}: ${Object.keys(local.estados).join(", ")}`)
 }

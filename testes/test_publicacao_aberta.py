@@ -77,7 +77,9 @@ def test_dupla_publicacao_guarda_integra_antes_de_expor_basico(tmp_path, monkeyp
         "croissant_cartao_modelo.md.json",
         "cartao_modelo.md",
         "croissant.json",
+        "reprocessamento.json",  # andamento por estado, contrato fechado
     }
+    validar_asset_publico("reprocessamento.json", gh_publico.assets["reprocessamento.json"])
     for nome, dados in gh_publico.assets.items():
         validar_asset_publico(nome, dados)
     validar_asset_publico("estados.json", gh_publico.assets["estados.json"])

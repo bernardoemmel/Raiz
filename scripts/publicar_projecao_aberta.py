@@ -132,7 +132,7 @@ def preparar(rel: dict, tag: str, diretorio: Path) -> dict[str, Path]:
                 arm.garantir_uf(uf)
                 # O corte prepara apenas a projeção básica em disco, sem rede.
                 # O catálogo descreve os bytes efetivamente publicados depois.
-                arm._publicar_aberto(uf, info, catalogar=False)
+                arm._publicar_aberto(uf, info, catalogar=False, regras=False)
         finally:
             arm.cli.close()
     indice = {
