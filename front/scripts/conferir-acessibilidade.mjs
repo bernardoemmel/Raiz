@@ -37,6 +37,10 @@ export function conferirSerieLighthouseCelular(amostras) {
 /** Verificação do fluxo visível: a tabela pode rolar, a página inteira não. */
 export async function conferirPaginaAcessivel(page, AxeBuilder, nome, saida) {
   await page.evaluate(() => document.fonts.ready)
+  // Depois de setViewportSize, o CSS do celular entra na hora, mas o menu largo do cabeçalho só some quando o
+  // React recebe o matchMedia (um quadro depois). Sem esperar, o axe às vezes pega o link atual já fora da
+  // barra escura (branco sobre fundo claro) e reprova a página no CI. Mesmo corte de Cabecalho.tsx.
+  await page.waitForFunction(() => !matchMedia("(max-width: 1180px)").matches || !document.querySelector(".topo-principal"))
   const resultado = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
   const fs = await import("node:fs")
   fs.writeFileSync(`${saida}/${nome}-axe.json`, JSON.stringify(resultado, null, 2))
