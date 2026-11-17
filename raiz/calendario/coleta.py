@@ -24,6 +24,7 @@ import requests
 import yaml
 from bs4 import BeautifulSoup
 
+from raiz import qualidade_calendario as Q
 from raiz.calendario import atos_pdf, catalogo, diario_pa, diarios, leiloes_abertos, ocr_pdf
 from raiz.calendario.modelos import CAR, SIGEF, UFS, Evento, FonteEstado, identificador, normalizar_car, url_publica
 from raiz.calendario.processo_limitado import executar
@@ -707,7 +708,7 @@ def coletar_fonte(fonte: dict, agora: dt.datetime, obter=None, anteriores=()) ->
             situacao="erro" if faltantes else "ok",
             paginas=0,
             eventos=0,
-            erro="Diário ainda sem adaptador: " + ", ".join(faltantes) if faltantes else None,
+            erro=Q.AVISO_SEM_ADAPTADOR.format(ufs=", ".join(faltantes)) if faltantes else None,
         )
     obter = obter or baixar
     hoje = agora.astimezone(ZoneInfo("America/Sao_Paulo")).date()
@@ -826,15 +827,15 @@ def coletar_fonte(fonte: dict, agora: dt.datetime, obter=None, anteriores=()) ->
     situacao = "erro" if falhas == len(vistos) else ("parcial" if parcial else ("ok" if eventos else "sem_data"))
     erro = None
     if falhas:
-        erro = f"{falhas} página(s) não puderam ser lidas; consulte a fonte oficial."
+        erro = Q.AVISO_PAGINAS.format(n=falhas)
     if acesso_restrito:
-        erro = "Fonte restringiu o acesso ou pediu espera; consultas interrompidas sem contornar a restrição."
+        erro = Q.AVISO_RESTRITO
     if sem_data:
-        erro = (erro + " " if erro else "") + "Há atos cuja data ou vínculo com o imóvel não pôde ser confirmado."
+        erro = (erro + " " if erro else "") + Q.AVISO_SEM_DATA
     if fila:
-        erro = (erro + " " if erro else "") + "Limite de páginas da rodada atingido; cobertura parcial."
+        erro = (erro + " " if erro else "") + Q.AVISO_LIMITE
     if fonte.get("cobertura_parcial"):
-        erro = (erro + " " if erro else "") + "A fonte cobre parte das publicações; confira também seu portal oficial."
+        erro = (erro + " " if erro else "") + Q.AVISO_COBERTURA_PARCIAL
     estado = FonteEstado(
         id=fonte["id"],
         nome=fonte["nome"],
@@ -858,7 +859,7 @@ def _isolada(fonte: dict, agora: dt.datetime, obter, anteriores) -> tuple[list[E
             nome=fonte["nome"],
             coletado_em=agora,
             situacao="erro",
-            erro=f"falha inesperada ao ler a fonte ({type(ex).__name__}); consulte a fonte oficial.",
+            erro=Q.AVISO_FALHA_INESPERADA.format(tipo=type(ex).__name__),
         )
 
 
