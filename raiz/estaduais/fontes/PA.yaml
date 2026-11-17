@@ -1,0 +1,146 @@
+# Fontes estaduais do Pará. Testado desta nuvem (fora do Brasil) em 17/11/2026: SEMAS (LDI e Portal Análises do
+# CAR) abre; o ITERPA (iterpa.pa.gov.br) não abre daqui. As glebas estaduais entram pelo CNFP 2025 do SFB, que
+# recebe as glebas arrecadadas pelo ITERPA. Matrícula: regra do TJPA/CNJ em raiz/estaduais/matriculas.yaml.
+uf: PA
+verificado_em: "2026-11-17"
+fontes:
+  - id: pa_ldi
+    nome: Lista de Desmatamento Ilegal (LDI), áreas com e sem CAR
+    tema: embargo_estadual
+    orgao: SEMAS-PA
+    acesso: aberto
+    tipo: ldi_pa
+    url: https://monitoramento.semas.pa.gov.br/ldi
+    geometria: ponto
+    juncao: cod_imovel_ou_geometria
+    campo_cod_imovel: cod_imovel
+    campo_ha: desmate_car_ha
+    campo_data: ano
+    manter: [cod_ldi, cod_imovel, situacao_car, ano, area_ha, desmate_car_ha, fonte_alerta, processo]
+    efeito: exclusao
+    motivo: desmatamento_ilegal_estadual
+    criterio: >-
+      A LDI (Decreto estadual 838/2013) liga cada desmatamento ilegal ao recibo do CAR e informa quanto caiu dentro
+      dele ("Desmate em CAR"). Ligada ao CAR e acima do limiar (1 ha ou 5% do imóvel) = exclusão: a área desmatada
+      ilegalmente é passivo do dono (recompor é obrigação, não gera crédito) e fica impedida de negócio até a
+      regularização. Abaixo do limiar = ressalva de borda. Área da lista sem CAR ligado: o ponto dentro do imóvel
+      vira ressalva (desmatamento_ilegal_estadual_ponto), porque o ponto não mede área.
+    lgpd: >-
+      O CSV com CAR traz razão social e CPF/CNPJ do proprietário: as duas colunas são apagadas na leitura e nunca
+      saem da coleta. O recibo do CAR é público.
+    licenca: Dado público do governo do Pará (publicação obrigatória da LDI, Decreto 838/2013).
+    situacao:
+      testado_em: "2026-11-17"
+      resultado: >-
+        ok: regioesdesmatamento/downloadcsvareasfile (5.128 áreas com recibo do CAR, 13 MB) e
+        regioesdesmatamento/downloadcsvfile (1.265 áreas sem CAR); emissão de 16/11/2026
+    referencia: https://monitoramento.semas.pa.gov.br/ldi/public/arquivosDownload/decreto_838.docx
+
+  - id: pa_quilombolas_car
+    nome: Territórios quilombolas inscritos no CAR (Portal Análises do CAR, programa CAR PCT)
+    tema: territorio_tradicional
+    orgao: SEMAS-PA
+    acesso: aberto
+    tipo: arquivo
+    url: https://sistemas.semas.pa.gov.br/analisecar/graficos-e-mapas/data/TERRITORIOS_CAR_QUILOMBOLAS.geojson
+    geometria: poligono
+    manter: [pct, titulacao, municipio, area_car]
+    efeito: exclusao
+    motivo: territorio_quilombola_estadual
+    criterio: >-
+      Território quilombola inscrito pelo estado acima do limiar = exclusão (CLPI, OIT 169, Lei 15.042/2024 art.
+      47); só na borda = ressalva. Complementa o CAR PCT nacional e os quilombos do INCRA.
+    lgpd: Sem dado pessoal (quantidade de beneficiários e de mulheres não é guardada).
+    licenca: Dado público do governo do Pará (Portal Análises do CAR).
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 60 territórios em EPSG:4674"}
+
+  - id: pa_territorios_pesqueiros
+    nome: Territórios pesqueiros reconhecidos por portaria (Portal Análises do CAR)
+    tema: territorio_tradicional
+    orgao: SEMAS-PA
+    acesso: aberto
+    tipo: arquivo
+    url: https://sistemas.semas.pa.gov.br/analisecar/graficos-e-mapas/data/TERRITORIOS_PESQUEIROS.geojson
+    geometria: poligono
+    manter: [portaria, municipios, area_total]
+    efeito: ressalva
+    motivo: territorio_pesqueiro
+    criterio: >-
+      Território pesqueiro reconhecido pelo estado acima do limiar = ressalva (uso tradicional das margens; consulta
+      às comunidades antes de restaurar).
+    lgpd: Sem dado pessoal.
+    licenca: Dado público do governo do Pará (Portal Análises do CAR).
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 15 territórios"}
+
+  - id: pa_servidao_ambiental
+    nome: Servidões ambientais registradas no CAR (Portal Análises do CAR)
+    tema: servidao_ambiental
+    orgao: SEMAS-PA
+    acesso: aberto
+    tipo: arquivo
+    url: https://sistemas.semas.pa.gov.br/analisecar/graficos-e-mapas/data/SERVIDAO_AMBIENTAL.geojson
+    geometria: poligono
+    manter: [COD_IMOVEL, CONDICAO, IND_STATUS, AREA_RL, EXCED_RL]
+    descartar: [NOM_IMOVEL]
+    efeito: ressalva
+    motivo: servidao_ambiental
+    criterio: >-
+      Servidão ambiental registrada acima do limiar = ressalva: a área já compensa a reserva legal de outro imóvel
+      (ou foi oferecida para isso) e não pode ser vendida de novo como restauração.
+    lgpd: O nome do imóvel (que costuma levar o nome do dono) é apagado na entrada.
+    licenca: Dado público do governo do Pará (Portal Análises do CAR).
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 2.988 polígonos (36 MB; o servidor é lento, ~3 min)"}
+
+  - id: pa_glebas_estaduais_cnfp
+    nome: Florestas públicas estaduais não destinadas (glebas arrecadadas e devolutas do ITERPA no CNFP 2025)
+    tema: terra_devoluta
+    orgao: SFB (CNFP), com dado do ITERPA
+    acesso: aberto
+    tipo: cnfp
+    url: https://www.gov.br/florestal/pt-br/assuntos/cadastro-nacional-de-florestas-publicas
+    geometria: poligono
+    manter: [categoria, tipo, governo, orgao, protecao]
+    efeito: ressalva
+    motivo: gleba_estadual
+    criterio: >-
+      Floresta pública estadual não destinada (tipo B, governo estadual) acima do limiar = ressalva: a posse está em
+      terra do estado; o caminho é a regularização no ITERPA (Lei estadual 8.878/2019). Destinada (UC, TI) vem das
+      outras camadas.
+    lgpd: Sem dado pessoal.
+    licenca: Dado aberto do governo federal (Decreto 8.777/2016).
+    situacao: {testado_em: "2026-11-17", resultado: "ok (mesmo arquivo do CNFP 2025 que a camada de terra pública usa)"}
+
+  - id: pa_iterpa_sicarf
+    nome: Glebas estaduais, terras devolutas e títulos do ITERPA (SICARF)
+    tema: terra_devoluta
+    orgao: ITERPA
+    acesso: bloqueado_fora_brasil
+    tipo: pendente
+    url: http://www.iterpa.pa.gov.br/
+    efeito: conferir
+    motivo: terra_devoluta_a_conferir
+    criterio: >-
+      Título estadual, gleba arrecadada ou área em discriminatória sobre o imóvel = ressalva (domínio pode ser do
+      estado). Sem camada pública conhecida: item do checklist de todo imóvel do Pará.
+    lgpd: —
+    situacao: {testado_em: "2026-11-17", resultado: "iterpa.pa.gov.br: túnel recusado (502) desta nuvem"}
+    alternativa: >-
+      Automático hoje: pa_glebas_estaduais_cnfp (CNFP 2025). Rodar `python -m raiz.estaduais coletar --ufs PA` a
+      partir do Brasil para testar o SICARF; sem download, pedir as glebas por LAI ao ITERPA. As arrecadações saem
+      no Diário Oficial (IOEPA) com memorial descritivo.
+
+  - id: pa_semas_embargos
+    nome: Áreas embargadas pela SEMAS fora da LDI (SIMLAM, consulta pública)
+    tema: embargo_estadual
+    orgao: SEMAS-PA
+    acesso: sem_download
+    tipo: pendente
+    url: https://portal-servicos-sistemas.semas.pa.gov.br/consulta-mapa
+    efeito: conferir
+    motivo: embargo_estadual_a_conferir
+    criterio: >-
+      Embargo estadual que não esteja na LDI: conferir no mapa público da SEMAS (consulta por imóvel). A LDI já
+      cobre o desmatamento ilegal embargado.
+    lgpd: —
+    situacao: {testado_em: "2026-11-17", resultado: "mapa interativo sem download nem serviço WFS público conhecido"}
+    alternativa: LDI (pa_ldi) e embargos do Ibama (nacional).

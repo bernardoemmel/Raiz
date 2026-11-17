@@ -219,6 +219,11 @@ def validar_asset_publico(nome: str, dados: bytes, *, repo: str = "bernardoemmel
         if dados != (RAIZ_REPO / "docs" / "modelo" / "cartao.md").read_bytes():
             raise ValueError("cartão público deve corresponder ao texto metodológico revisado")
         return
+    if nome == "reprocessamento.json":
+        from raiz.executor.reprocessamento import validar_status_publico
+
+        validar_status_publico(dados)
+        return
     if nome == "croissant.json" or nome.startswith("croissant_"):
         from raiz.metadados import validar_ficha_publica
 

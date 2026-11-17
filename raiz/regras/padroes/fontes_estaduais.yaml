@@ -1,0 +1,82 @@
+# Fontes estaduais na triagem (raiz/estaduais/cruzamento.py). Catálogo das camadas em raiz/estaduais/fontes/<UF>.yaml;
+# bloqueios de matrícula por tribunal em raiz/estaduais/matriculas.yaml. Mesmo desenho das restrições nacionais
+# (raiz/regras/padroes/restricoes_nacionais.yaml): exclusao | ressalva | livre | nao_verificado.
+versao: "2026-11-17.1"
+
+# Sobreposição conta quando passa de limiar_ha OU de limiar_fracao do imóvel (imóvel pequeno conta pela fração;
+# ninguém sai por tamanho). Abaixo de tolerancia_ha é ruído de contorno.
+limiar_ha: 1.0
+limiar_fracao: 0.05
+tolerancia_ha: 0.1
+
+# Texto de cada motivo (vai para a decisão explicada e para o checklist do lote).
+motivos:
+  embargo_estadual: Área embargada pelo órgão ambiental estadual dentro do imóvel; sai do lote até o desembargo.
+  embargo_estadual_borda: Embargo estadual encosta no imóvel; conferir o limite do embargo.
+  embargo_estadual_ponto: Termo de embargo estadual registrado como ponto dentro do imóvel; pedir o polígono embargado.
+  auto_estadual: Auto de infração ambiental estadual dentro do imóvel (histórico de infração).
+  auto_estadual_flora_recente: Auto estadual de desmate ou supressão nos últimos 5 anos; conferir linha de base e risco.
+  uc_estadual_protecao_integral: Unidade de conservação de proteção integral sobre o imóvel (posse e domínio públicos).
+  uc_estadual_protecao_integral_borda: Unidade de conservação de proteção integral encosta no imóvel; conferir o limite.
+  uc_estadual_uso_sustentavel: Unidade de conservação de uso sustentável (APA, RDS, ARIE); conferir plano de manejo e zoneamento.
+  uc_municipal: Unidade de conservação municipal sobre o imóvel; conferir o decreto.
+  uc_municipal_protecao_integral: Unidade de conservação municipal de proteção integral sobre o imóvel.
+  uc_municipal_protecao_integral_borda: Unidade de conservação municipal de proteção integral encosta no imóvel.
+  rppn: RPPN sobre o imóvel; área já protegida em caráter perpétuo, não é restauração adicional.
+  territorio_quilombola_estadual: Território quilombola sobre o imóvel (CLPI, OIT 169, Lei 15.042/2024 art. 47).
+  territorio_quilombola_estadual_borda: Território quilombola encosta no imóvel; conferir limite e consulta prévia.
+  comunidade_tradicional_proxima: Comunidade quilombola ou aldeia a até 3 km; conferir território e consulta prévia.
+  fundo_fecho_pasto: Território de fundo ou fecho de pasto sobre o imóvel (uso comum tradicional, Bahia).
+  fundo_fecho_pasto_borda: Fundo ou fecho de pasto encosta no imóvel; conferir limite.
+  restauracao_em_execucao: Já existe restauração registrada no Estado nesta área; risco de dupla contagem.
+  restauracao_obrigatoria: Restauração registrada por exigência legal (CETESB, MP, judicial ou multa); não é adicional.
+  tcra_recuperacao_obrigatoria: Termo de compromisso de recuperação ambiental (TCRA) no imóvel; área a recuperar é obrigação.
+  recuperacao_obrigatoria: PRAD ou plantio compensatório aprovado no imóvel; recuperação é obrigação, não é adicional.
+  psa_estadual_vigente: Imóvel recebe pagamento por serviço ambiental do Estado; conferir contrato e risco de dupla remuneração.
+  imovel_em_uc_a_desapropriar: Imóvel dentro de UC oferecido para compensação; o destino é virar terra pública.
+  rio_preservacao_permanente_mg: Rio de preservação permanente (Lei MG 15.082/2004); restrição extra de uso na faixa.
+  area_protecao_especial: Área de proteção especial estadual (mananciais); conferir o decreto.
+  supressao_autorizada_recente: Supressão de vegetação autorizada pelo Estado no imóvel; muda linha de base e uso planejado.
+  titulo_estadual_terra_devoluta: Título estadual sobre terra devoluta; conferir cláusulas resolutivas e inalienabilidade.
+  terra_devoluta_em_legitimacao: Legitimação de terra devoluta em aberto; domínio ainda público.
+  terra_devoluta_grilagem: Área marcada como grilagem ou anulada por decisão judicial pelo órgão de terras do Estado.
+  terra_devoluta_grilagem_borda: Área de grilagem ou anulada encosta no imóvel; conferir o limite.
+  terra_devoluta_a_conferir: Órgão estadual de terras sem camada pública; conferir terra devoluta e títulos estaduais.
+  terra_legitimada_es: Terra legitimada pelo IDAF (título estadual já dado).
+  matricula_bloqueio_tjpi: Município com matrículas bloqueadas pela Corregedoria do TJPI; conferir certidão de inteiro teor e CNIB.
+  matricula_bloqueio_tjba: Matrículas de Formosa do Rio Preto sob bloqueio do TJBA; conferir se a cadeia passa pelas matrículas 726/727.
+  matricula_oeste_baiano_conferir: Oeste baiano sob correição de matrículas; certidão de inteiro teor, cadeia dominial e CNIB.
+  rl_estadual_pi_a_confirmar: Reserva legal de 30% no cerrado do Piauí (lei estadual) ainda a confirmar; o motor usa 20%.
+  prioridade_nascentes: Área prioritária do Programa Nascentes (SP); ajuda a vender restauração e compensação.
+  prioridade_restauracao_mg: Área prioritária para restauração em Minas Gerais.
+  desembargo_estadual: Processo de embargo estadual já desembargado.
+  # Amazônia Legal (PA, RO, MT, MA, AM, AC, AP, RR, TO)
+  desmatamento_ilegal_estadual: >-
+    Imóvel na Lista de Desmatamento Ilegal do Pará, com o desmate dentro do CAR acima do limiar: recompor é obrigação
+    do dono (não gera crédito) e a área fica impedida de negócio até a regularização na SEMAS.
+  desmatamento_ilegal_estadual_borda: Desmatamento ilegal da LDI ligado ao CAR, mas abaixo do limiar; conferir na SEMAS.
+  desmatamento_ilegal_estadual_ponto: Área da Lista de Desmatamento Ilegal (sem CAR ligado) com o ponto dentro do imóvel; pedir o polígono à SEMAS.
+  territorio_pesqueiro: Território pesqueiro reconhecido pelo estado sobre o imóvel; consultar as comunidades antes de restaurar as margens.
+  servidao_ambiental: Servidão ambiental registrada no imóvel; a área já compensa reserva legal de outro imóvel e não pode ser vendida de novo.
+  pra_assinado: Termo de compromisso do PRA assinado; a recomposição de reserva legal e APP do termo é obrigação, não é adicional.
+  zona_amortecimento_uc: Imóvel na zona de amortecimento de UC estadual; o plano de manejo pode limitar o uso.
+  area_bloqueada_estadual: Área bloqueada pelo estado (reservatório de usina) sobre o imóvel.
+  area_bloqueada_estadual_borda: Área bloqueada pelo estado encosta no imóvel; conferir o limite.
+  area_bloqueada_estadual_ponto: Área bloqueada pelo estado registrada como ponto dentro do imóvel.
+  gleba_estadual: >-
+    Floresta pública estadual não destinada (gleba arrecadada ou devoluta, CNFP) sobre o imóvel: posse em terra do
+    estado; o caminho é a regularização no instituto de terras estadual.
+  gleba_transferida_a_conferir: Gleba transferida pela União ao estado (AP, RR) sem camada pública; conferir no órgão de terras estadual.
+  embargo_estadual_a_conferir: Órgão ambiental estadual sem camada pública de embargos acessível; conferir embargo estadual do imóvel.
+  car_estadual_a_conferir: CAR estadual próprio (SIMCAR-MT) sem acesso daqui; conferir situação e pendências do CAR no sistema do estado.
+  zee_a_conferir: Zoneamento ecológico-econômico estadual sem camada; conferir a zona (pode mudar a reserva legal para recompor).
+  uc_estadual_a_conferir: Base estadual de UCs sem download direto; conferir UC estadual (o CNUC nacional cobre a maior parte).
+  redd_estadual_a_conferir: Programa estadual de REDD+ em UCs (AM) sem camada; conferir dupla contagem com o programa.
+  redd_jurisdicional_estadual: Estado com programa jurisdicional de REDD+ (AC, SISA); crédito de projeto precisa de registro e desconto no programa.
+  zsee_ro_zona_1: "ZSEE de Rondônia, zona 1 (uso consolidado): reserva legal para recompor pode ser 50% (Lei 12.651, art. 13 I)."
+  zsee_ro_zona_2: ZSEE de Rondônia, zona 2 (uso especial); reserva legal de 80%.
+  zsee_ro_zona_3: ZSEE de Rondônia, zona 3 (áreas institucionais); conferir restrições da zona.
+  matricula_acima_limite_tjpa: >-
+    Imóvel do Pará acima de 2.500 ha: se a matrícula veio de título público maior que o limite da época (10.000 ha
+    até 1964, 3.000 ha até 1988, 2.500 ha depois), pode estar bloqueada ou cancelada (TJPA e CNJ, PP
+    0001943-67.2009); conferir na certidão de inteiro teor e no CNIB.

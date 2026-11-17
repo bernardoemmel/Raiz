@@ -13,11 +13,15 @@
 - Roteiro de construção: `docs/plano-por-etapa.md`.
 - Norte do produto: `docs/cena-alvo.md` (o cliente pede "1 milhão de créditos" e o mapa monta o melhor lote). Todo trabalho deve aproximar essa cena.
 - Entrega: ao terminar, puxe a main, resolva os conflitos, abra o PR e, com o CI verde, faça você mesmo o merge na main.
-  Não precisa pedir permissão ao fundador nem esperar outra sessão. Nunca force-push na main.
+  Fora das áreas críticas (abaixo), não precisa pedir permissão ao fundador nem esperar outra sessão. Nunca force-push na main.
 - Main protegida: todo código entra por PR, com os checks do CI verdes (agentes, workflows, segredos, front,
-  seguranca, testes_python, referencia_para, checagens, e2e, carga, mcp). Proibido push direto, force-push e apagar
-  a main, inclusive para administradores. Não há review humano obrigatório: com o CI verde, quem abriu o PR faz o merge.
+  seguranca, testes_python, referencia_para, checagens, e2e, carga, mcp, aprovacao). Proibido push direto, force-push e
+  apagar a main, inclusive para administradores. Com os checks verdes, quem abriu o PR faz o merge.
   Nunca desligue, pule ou marque como opcional um check para conseguir mergear; conserte o que falhou.
+- Áreas críticas (motor/, .github/, código e scripts que mudam dados publicados, publicação do site, migrações,
+  estas regras; lista em `docs/politica-de-merge.md`): o check `aprovacao` só passa com o rótulo
+  `aprovado-bernardo`, que só o fundador põe. Agente NUNCA põe nem tira esse rótulo. Abra o PR, avise o fundador
+  com o link e espere; o resto (docs, testes, telas, API) continua com merge livre e CI verde.
 - Automações não gravam na main. Workflows publicam em Releases, tags de trava ou no Pages; se um workflow precisar
   mudar arquivo do repositório, ele abre um PR. O painel do `motor/README.md` não é mais regravado pelo Actions
   (a situação dos estados fica no `estados.json` do Release `dados`). Configuração da proteção: `docs/protecao-main.md`.

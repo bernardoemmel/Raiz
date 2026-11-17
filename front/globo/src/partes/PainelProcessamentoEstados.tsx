@@ -14,7 +14,7 @@ function numero(valor: number | null): string {
   return valor === null ? "Não informado" : fmtInt(valor)
 }
 
-function Linha({ estado, agora }: { estado: ProcessamentoEstado; agora: number }) {
+function Linha({ estado, agora, publicado }: { estado: ProcessamentoEstado; agora: number; publicado?: { resumo: number; desenho: number } }) {
   const situacao = situacaoProcessamento(estado, agora)
   const recente = situacao === "atual"
   const informado = situacao !== "sem_telemetria"
@@ -26,7 +26,8 @@ function Linha({ estado, agora }: { estado: ProcessamentoEstado; agora: number }
     </div>
     {estado.escopo === "unidade" && <p className="processamento-parcial">Cobertura parcial{estado.unidade ? `: unidade ${estado.unidade}` : " de uma unidade"}. As contagens não representam o estado inteiro.</p>}
     {estado.escopo === "uf" && estado.municipios_total !== null && <p className="processamento-total">{fmtInt(estado.municipios_total)} municípios no estado.</p>}
-    {!recente && informado && <p className="processamento-parcial">Contagens da última observação, que já venceu.</p>}
+    {publicado && <p className="processamento-publicado">No mapa agora: {fmtInt(publicado.resumo)} {publicado.resumo === 1 ? "município" : "municípios"} com resumo e {fmtInt(publicado.desenho)} com desenho{estado.municipios_total !== null ? ` (de ${fmtInt(estado.municipios_total)})` : ""}.</p>}
+    {!recente && informado && <p className="processamento-parcial">Contagens da última observação do processamento, que já venceu. Os números publicados no mapa estão acima.</p>}
     <dl className="processamento-contagens">
       <div><dt>Municípios prontos</dt><dd>{numero(informado ? n.prontos : null)}</dd></div>
       <div><dt>Rodando agora</dt><dd>{numero(recente ? n.em_execucao : null)}</dd></div>
@@ -39,13 +40,13 @@ function Linha({ estado, agora }: { estado: ProcessamentoEstado; agora: number }
   </li>
 }
 
-export const PainelProcessamentoEstados = memo(function PainelProcessamentoEstados({ carga, uf }: { carga: CargaProcessamento; uf?: string | null }) {
+export const PainelProcessamentoEstados = memo(function PainelProcessamentoEstados({ carga, uf, publicados }: { carga: CargaProcessamento; uf?: string | null; publicados?: Record<string, { resumo: number; desenho: number }> }) {
   const estados = (carga.dado?.estados ?? []).filter((e) => !uf || e.uf === uf).sort((a, b) => UFS[a.uf].localeCompare(UFS[b.uf], "pt-BR"))
   return <section className="secao-painel processamento-estados" aria-labelledby="processamento-titulo">
     <h2 id="processamento-titulo">Processamento dos municípios</h2>
     <p className="processamento-legenda">{uf ? "Andamento neste estado." : "Andamento por estado."} Horários de Brasília.</p>
     {carga.erro && <p role="status" className="processamento-aviso">Não foi possível atualizar o processamento.{carga.dado ? " A última observação recebida continua abaixo." : " As contagens ainda não foram informadas."}</p>}
     {!carga.dado && !carga.erro && <p role="status">{carga.carregando ? "Consultando o processamento dos municípios." : "As contagens ainda não foram informadas."}</p>}
-    {estados.length > 0 && <ol className="processamento-lista">{estados.map((estado) => <Linha key={estado.uf} estado={estado} agora={carga.agora} />)}</ol>}
+    {estados.length > 0 && <ol className="processamento-lista">{estados.map((estado) => <Linha key={estado.uf} estado={estado} agora={carga.agora} publicado={publicados?.[estado.uf]} />)}</ol>}
   </section>
 })

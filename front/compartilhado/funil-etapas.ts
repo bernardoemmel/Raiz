@@ -221,13 +221,18 @@ export interface NumerosBrasil {
   faltaTitulo: number
   /** hectares que podem voltar a ser mata */
   ha: number
+  /** hectares que podem voltar a ser mata nas aptas com matrícula */
+  haMatricula: number
+  /** lotes de assentamento para agrupar (frente assentamento_agrupado) */
+  agrupar: number
 }
 
 export function numerosDoBrasil(municipios: FunilMunicipio[]): NumerosBrasil {
   const soma = (k: keyof FunilMunicipio) => municipios.reduce((s, m) => s + (Number(m[k]) || 0), 0)
   const aptas = soma("aptas_carbono")
   const prontas = soma("aptas_com_matricula")
-  return { municipios: municipios.length, imoveis: soma("imoveis"), aptas, prontas, faltaTitulo: aptas - prontas, ha: soma("ha_carbono") }
+  return { municipios: municipios.length, imoveis: soma("imoveis"), aptas, prontas, faltaTitulo: aptas - prontas, ha: soma("ha_carbono"),
+    haMatricula: soma("ha_carbono_matricula"), agrupar: soma("para_agrupar") }
 }
 
 /**

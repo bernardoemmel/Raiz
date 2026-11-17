@@ -1,0 +1,69 @@
+# Fontes estaduais do Acre. Testado em 17/11/2026: o site da SEMA-AC abre (repositório do ZEE com PDFs e mapas),
+# mas o CAR estadual (car.ac.gov.br) fecha a conexão e não há geoserver público conhecido. O Acre tem programa
+# jurisdicional de REDD+ (SISA, Lei estadual 2.308/2010, ISA Carbono) que cobre o estado inteiro.
+uf: AC
+verificado_em: "2026-11-17"
+fontes:
+  - id: ac_sisa_redd
+    nome: Sistema estadual de incentivos a serviços ambientais (SISA) e programa jurisdicional ISA Carbono
+    tema: redd_jurisdicional
+    orgao: SEMA-AC / IMC
+    acesso: sem_download
+    tipo: pendente
+    url: https://sema.ac.gov.br/
+    efeito: conferir
+    motivo: redd_jurisdicional_estadual
+    criterio: >-
+      Todo imóvel do Acre está dentro do programa jurisdicional: crédito de projeto privado precisa de registro e
+      desconto no programa (aninhamento) para não contar duas vezes. Item do checklist de todo imóvel do AC.
+    lgpd: —
+    situacao: {testado_em: "2026-11-17", resultado: "sem camada: o programa vale para o estado inteiro"}
+    alternativa: Contexto jurisdicional da camada de terra comprometida (ART/REDD+).
+
+  - id: ac_zee
+    nome: Zoneamento Ecológico-Econômico do Acre, fase III (Decreto estadual 6.469/2007 e revisões)
+    tema: zee
+    orgao: SEMA-AC
+    acesso: sem_download
+    tipo: pendente
+    url: https://sema.ac.gov.br/zee-ac-repositorio/
+    efeito: conferir
+    motivo: zee_a_conferir
+    criterio: >-
+      Informativo quando a camada chegar (a zona pode reduzir a reserva legal para recompor). O repositório publica
+      mapas temáticos em PDF, não camada vetorial.
+    lgpd: —
+    situacao: {testado_em: "2026-11-17", resultado: "repositório abre; só PDFs e imagens, sem shapefile"}
+    alternativa: Pedir o shapefile do ZEE à SEMA-AC (Núcleo de ZEE) ou por LAI.
+
+  - id: ac_imac_embargos
+    nome: Embargos e autos estaduais (IMAC) e CAR estadual
+    tema: embargo_estadual
+    orgao: IMAC
+    acesso: bloqueado_fora_brasil
+    tipo: pendente
+    url: https://www.car.ac.gov.br/
+    efeito: conferir
+    motivo: embargo_estadual_a_conferir
+    criterio: Embargo estadual acima do limiar = exclusão quando a camada chegar; até lá, checklist.
+    lgpd: Apagar nome e documento na entrada.
+    situacao: {testado_em: "2026-11-17", resultado: "www.car.ac.gov.br: conexão fechada; geo.ac.gov.br não resolve daqui"}
+    alternativa: Embargos e autos do Ibama (nacional); a camada sicar_imoveis_ac espelhada na SEDAM-RO abre daqui.
+
+  - id: ac_glebas_estaduais_cnfp
+    nome: Florestas públicas estaduais não destinadas (CNFP 2025)
+    tema: terra_devoluta
+    orgao: SFB (CNFP), com dado do ITERACRE
+    acesso: aberto
+    tipo: cnfp
+    url: https://www.gov.br/florestal/pt-br/assuntos/cadastro-nacional-de-florestas-publicas
+    geometria: poligono
+    manter: [categoria, tipo, governo, orgao, protecao]
+    efeito: ressalva
+    motivo: gleba_estadual
+    criterio: >-
+      Floresta pública estadual não destinada (tipo B, governo estadual) acima do limiar = ressalva: posse em terra
+      do estado; o caminho é a regularização no ITERACRE. 
+    lgpd: Sem dado pessoal.
+    licenca: Dado aberto do governo federal (Decreto 8.777/2016).
+    situacao: {testado_em: "2026-11-17", resultado: "ok (CNFP 2025 do SFB, abre de fora do Brasil)"}

@@ -1,6 +1,7 @@
 import type { EstadoDados, Estados, FunilMunicipio, PontoFazenda } from "../../../compartilhado/dados"
 import { doEstado, fmtHa, fmtInt, UFS } from "../../../compartilhado/formato"
 import { numerosDoBrasil } from "../../../compartilhado/funil-etapas"
+import { rotuloRegras } from "../../../compartilhado/dados/reprocessamento"
 import { linkEstado, linkMunicipio } from "../rota"
 import { Estado } from "./Estado"
 import { MiniBrasil } from "./MiniBrasil"
@@ -71,11 +72,15 @@ export function PainelBrasil({ municipios, comLista, estados, uf, pontos, carreg
                     <strong>{e.nome}</strong>
                     <small>{situacaoDoEstado(e)}</small>
                   </span>
-                  <span className={`selo ${e.situacao === "completo" ? "ok" : "neutro"}`}>{e.situacao === "completo" ? "Completo" : "Dados parciais"}</span>
+                  <span className="selos-estado">
+                    <span className={`selo ${e.situacao === "completo" ? "ok" : "neutro"}`}>{e.situacao === "completo" ? "Completo" : "Dados parciais"}</span>
+                    <SeloRegras estado={e} vigente={estados?.regras_vigentes} />
+                  </span>
                 </a>
               </li>
             ))}
           </ol>
+          <LegendaRegras estados={comDado} vigente={estados?.regras_vigentes} />
           {semDado > 0 && (
             <p className="legenda-frase">
               {semDado === 1 ? "Um estado ainda não tem resumo do motor" : `Os outros ${fmtInt(semDado)} estados ainda não têm resumo do motor`}.
@@ -91,6 +96,27 @@ export function PainelBrasil({ municipios, comLista, estados, uf, pontos, carreg
       </p>
       {carregando && <span className="sr">Carregando</span>}
     </div>
+  )
+}
+
+/** Selo das regras de classificação: novas, reprocessando (x/y municípios) ou antigas. */
+function SeloRegras({ estado, vigente }: { estado: EstadoDados; vigente?: string }) {
+  const r = rotuloRegras(estado.regras, vigente)
+  const cor = r.tipo === "novas" ? "ok" : r.tipo === "reprocessando" ? "conferir" : "neutro"
+  return <span className={`selo selo-regras ${cor}`} title={r.frase}>{r.selo}</span>
+}
+
+/** Quantos estados já estão no site com as regras novas; o resto continua com os dados antigos até fechar. */
+function LegendaRegras({ estados, vigente }: { estados: EstadoDados[]; vigente?: string }) {
+  const tipos = estados.map((e) => rotuloRegras(e.regras, vigente).tipo)
+  const novas = tipos.filter((t) => t === "novas").length
+  const andando = tipos.filter((t) => t === "reprocessando").length
+  return (
+    <p className="legenda-frase legenda-regras">
+      Regras novas no site: {novas === 1 ? "1 estado" : `${fmtInt(novas)} estados`}
+      {andando > 0 && `; ${andando === 1 ? "1 sendo refeito" : `${fmtInt(andando)} sendo refeitos`}`}.
+      {" "}Cada estado é trocado inteiro, só quando termina de ser refeito; até lá o mapa mostra os dados que já estavam no ar.
+    </p>
   )
 }
 
@@ -148,6 +174,9 @@ function PainelEstado({ uf, municipios, comLista, estados, cobertura, andamento 
                 faltam === 1 ? "Falta o resumo de 1 município." : `Faltam os resumos de ${fmtInt(faltam)} municípios.`
               } O conjunto estadual é parcial.`}
         {e.atualizado_em && ` Dados de ${new Date(e.atualizado_em).toLocaleDateString("pt-BR")}.`}
+      </p>
+      <p className={`estado-regras regras-${rotuloRegras(e.regras, estados?.regras_vigentes).tipo}`}>
+        <SeloRegras estado={e} vigente={estados?.regras_vigentes} /> {rotuloRegras(e.regras, estados?.regras_vigentes).frase}
       </p>
       <PainelCobertura cobertura={cobertura} uf={uf} />
       {doUf.length > 0 ? (
