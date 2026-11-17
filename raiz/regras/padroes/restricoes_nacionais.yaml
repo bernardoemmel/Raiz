@@ -1,0 +1,63 @@
+# Restrições nacionais na triagem (raiz/restricoes/status.py): SICAR completo, SIGMINE (ANM), autos de infração do
+# Ibama e Lista Suja do trabalho escravo. Cada imóvel recebe "exclusao" (sai do lote), "ressalva" (fica no lote,
+# marcado, com o motivo), "livre" (todas as fontes essenciais consultadas e nada cruzou) ou "nao_verificado".
+# Ausência de dado nunca vira "livre". Mudou este arquivo: a versão da tarefa "restricoes" muda e só ela refaz.
+#
+# Nunca descartar imóvel por tamanho: os limiares abaixo medem a SOBREPOSIÇÃO (ha ou fração do imóvel), não o
+# tamanho da fazenda. Imóvel pequeno conta pela fração.
+#
+# LGPD: nome, CPF e CNPJ não saem da coleta. A Lista Suja é cruzada só dentro da coleta (documento contra documento,
+# em memória) e vira um vínculo geográfico; o resultado por imóvel é só "há vínculo" ou não.
+versao: restricoes-2026a
+adotado_em: "2026-11-17"
+
+# Sobreposição que conta como "dentro do imóvel" (as duas regras: a primeira que bater).
+limiar_ha: 1.0
+limiar_fracao: 0.05
+# Abaixo disto a sobreposição é ruído de contorno (CARs vizinhos se tocam): não marca nem a ressalva de borda.
+tolerancia_ha: 0.1
+
+# Fontes sem as quais o imóvel nunca é "livre" (RL/APP declaradas são complemento: entram quando chegarem).
+fontes_essenciais: [sicar_car, sigmine, ibama_autos, lista_suja]
+
+mineracao:
+  # Fases do SIGMINE (campo FASE). Lavra = mina autorizada ou pedida: exclusão quando passa do limiar.
+  lavra:
+    - CONCESSÃO DE LAVRA
+    - LAVRA GARIMPEIRA
+    - LICENCIAMENTO
+    - REGISTRO DE EXTRAÇÃO
+    - REQUERIMENTO DE LAVRA
+    - REQUERIMENTO DE LAVRA GARIMPEIRA
+    - REQUERIMENTO DE LICENCIAMENTO
+    - REQUERIMENTO DE REGISTRO DE EXTRAÇÃO
+    - DIREITO DE REQUERER A LAVRA
+  # Qualquer outra fase ativa (requerimento e autorização de pesquisa, disponibilidade...) é ressalva.
+  inativas: [DADO NÃO CADASTRADO]
+
+ibama_autos:
+  ano_minimo: 2008 # marco do Código Florestal (Lei 12.651/2012, art. 61-A)
+  # auto de Flora nos últimos N anos é ressalva forte (motivo ibama_auto_flora_recente)
+  flora_recente_anos: 5
+
+motivos:
+  exclusao:
+    lista_suja: >-
+      Infrator da Lista Suja do trabalho escravo (Portaria Interministerial MTE/MDHC/MIR nº 18/2024) com auto ou
+      embargo do Ibama dentro do imóvel.
+    mineracao_lavra: Processo minerário em fase de lavra (ANM/SIGMINE) cobre parte relevante do imóvel.
+    territorio_tradicional: >-
+      CAR de povo ou comunidade tradicional (PCT) sobreposto ao imóvel: conflito com território tradicional
+      (OIT 169; Lei 15.042/2024, art. 47).
+  ressalva:
+    lista_suja_borda: Auto ou embargo de infrator da Lista Suja só na borda do imóvel (abaixo do limiar).
+    mineracao_lavra_borda: Processo minerário em fase de lavra só na borda do imóvel (abaixo do limiar).
+    mineracao_pesquisa: Processo minerário em pesquisa ou requerimento (ANM/SIGMINE) sobre o imóvel.
+    ibama_auto: Auto de infração ambiental do Ibama dentro do imóvel desde 2008.
+    ibama_auto_flora_recente: Auto de infração de Flora do Ibama dentro do imóvel nos últimos 5 anos.
+    territorio_tradicional_borda: CAR de povo ou comunidade tradicional toca a borda do imóvel.
+    assentamento_sobreposto: CAR de assentamento (AST) sobreposto ao imóvel; conferir com o INCRA.
+    car_sobreposto: Outro CAR de imóvel rural sobreposto ao imóvel (limite em conflito).
+    rl_app_alheia: Reserva legal ou APP declarada por outro CAR dentro do imóvel.
+    car_suspenso: CAR suspenso (ou cancelado) no SICAR; regularizar o cadastro antes de contratar.
+    car_pendente: CAR pendente no SICAR (pendência de análise ou notificação não atendida).

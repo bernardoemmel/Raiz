@@ -38,8 +38,11 @@ Workflow `.github/workflows/aprovacao.yml` ("Aprovação de áreas críticas"), 
    `aguardando-bernardo` no PR.
 4. O fundador abre o PR, clica em **Labels** (coluna da direita) e marca `aprovado-bernardo`. O check roda de novo
    sozinho, passa e tira `aguardando-bernardo`. O agente então mergeia como sempre.
-5. Qualquer push novo no PR tira `aprovado-bernardo` e o check volta a falhar: a aprovação vale só para o que o
-   fundador viu.
+5. Push novo no PR tira `aprovado-bernardo` e o check volta a falhar: a aprovação vale só para o que o
+   fundador viu. Exceção: o push que só junta a main (atualizar o PR com a main) mantém a aprovação quando
+   todo arquivo crítico que ele mudou ficou idêntico ao da main. O check confere arquivo por arquivo pela API
+   (comparação do commit anterior com o novo). Se o push reescrever o histórico, mudar um arquivo crítico de um
+   jeito que não veio da main (inclusive conflito resolvido à mão) ou mudar 300 arquivos ou mais, a aprovação cai.
 
 Lista do que espera o fundador:
 <https://github.com/bernardoemmel/Raiz/pulls?q=is%3Aopen+is%3Apr+label%3Aaguardando-bernardo>

@@ -1782,6 +1782,99 @@ def ambiental_resumo(arquivo: Annotated[str, typer.Argument(help="ambiental_<mun
         typer.echo(f"{k:20} {n}")
 
 
+restricoes_cli = typer.Typer(
+    help="Restrições nacionais na triagem: SICAR completo, SIGMINE (ANM), autos do Ibama e Lista Suja.",
+    no_args_is_help=True,
+)
+app.add_typer(restricoes_cli, name="restricoes")
+
+
+@restricoes_cli.command("coletar")
+def restricoes_coletar(
+    saida: Annotated[str, typer.Option(help="pasta onde gravar os arquivos que vão ao Release insumos")],
+    fontes: Annotated[str, typer.Option(help="sigmine, ibama_autos, lista_suja e car_temas, por vírgula")] = (
+        "sigmine,ibama_autos,lista_suja,car_temas"
+    ),
+    ufs: Annotated[str | None, typer.Option(help="SIGMINE só destas UFs (teste), por vírgula")] = None,
+) -> None:
+    """Coleta as fontes nacionais (sem nome, CPF ou CNPJ na saída) e grava camadas e cobertura."""
+    from raiz.restricoes import coleta as RC
+
+    lista = tuple(u.strip().upper() for u in ufs.split(",")) if ufs else RC.UFS
+    m = RC.coletar(saida, tuple(x.strip() for x in fontes.split(",") if x.strip()), ufs=lista)
+    for nome, c in m["fontes"].items():
+        extra = {k: v for k, v in c.items() if k not in ("estado", "url", "consultado_em", "ufs")}
+        typer.echo(f"  {nome}: {c['estado']} {extra}")
+
+
+@restricoes_cli.command("baixar")
+def restricoes_baixar(
+    tag: Annotated[str, typer.Option(help="Release de onde baixar")] = "insumos",
+    repo: Annotated[str, typer.Option(help="dono/repositório")] = "bernardoemmel/Raiz",
+) -> None:
+    """Baixa do Release insumos as camadas e a cobertura para a pasta que a tarefa lê."""
+    import httpx
+
+    from raiz.restricoes import coleta as RC
+    from raiz.restricoes import status as RS
+
+    pasta = RS.pasta_camadas()
+    pasta.mkdir(parents=True, exist_ok=True)
+    for nome in RC.NOMES.values():
+        r = httpx.get(f"https://github.com/{repo}/releases/download/{tag}/{nome}", follow_redirects=True, timeout=600)
+        if r.status_code == 404:
+            typer.echo(f"{nome}: ausente no Release (fonte indisponível na última coleta)")
+            continue
+        r.raise_for_status()
+        (pasta / nome).write_bytes(r.content)
+        typer.echo(f"{nome}: {len(r.content) / 1e6:.1f} MB")
+
+
+@restricoes_cli.command("recalcular")
+def restricoes_recalcular(
+    saida: Annotated[str | None, typer.Option(help="pasta saida/ do motor")] = None,
+    ufs: Annotated[str | None, typer.Option(help="só estas UFs, separadas por vírgula")] = None,
+    municipios: Annotated[str | None, typer.Option(help="só estes códigos IBGE, separados por vírgula")] = None,
+) -> None:
+    """Refaz restricoes_<mun>.csv dos municípios cuja versão mudou (sem refazer o funil)."""
+    from pathlib import Path
+
+    import pandas as pd
+
+    from raiz.funil.rodar import dir_trabalho
+    from raiz.restricoes import status as RS
+
+    pasta = Path(saida) if saida else dir_trabalho() / "saida"
+    lista = {u.strip().upper() for u in ufs.split(",")} if ufs else None
+    so = {int(x) for x in municipios.split(",")} if municipios else None
+    camadas = RS.Camadas()
+    v = f"{RS.versao()}+{RS.assinatura() or 'sem_coleta'}"
+    feitos = em_dia = 0
+    for uf in sorted(p for p in pasta.iterdir() if p.is_dir() and (not lista or p.name.upper() in lista)):
+        for g in sorted(uf.glob("geo_*.parquet")):
+            cod = int(g.stem.split("_")[1])
+            if so and cod not in so:
+                continue
+            f = uf / f"restricoes_{cod}.csv"
+            if f.exists() and v in set(pd.read_csv(f, usecols=["restricoes_versao"]).restricoes_versao):
+                em_dia += 1
+                continue
+            RS.escrever_municipio(uf, cod, camadas=camadas)
+            feitos += 1
+    typer.echo(f"versão {v}: {feitos} municípios refeitos, {em_dia} já em dia")
+
+
+@restricoes_cli.command("resumo")
+def restricoes_resumo(arquivo: Annotated[str, typer.Argument(help="restricoes_<mun>.csv")]) -> None:
+    """Contagem por status e por motivo (o agregado, que é o que pode ser público)."""
+    import pandas as pd
+
+    from raiz.restricoes import status as RS
+
+    for k, n in RS.resumo(pd.read_csv(arquivo)).items():
+        typer.echo(f"{k:16} {n}")
+
+
 titulo_cli = typer.Typer(
     help="Título (E5): regularização da posse, achados de título e quem confirmou cada um.", no_args_is_help=True
 )
