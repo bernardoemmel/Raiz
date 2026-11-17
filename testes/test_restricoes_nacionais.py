@@ -350,3 +350,27 @@ def test_checagem_do_lote_lista_ressalvas_e_lacunas():
         restricoes_do_lote(pd.DataFrame({"restricao_nacional": ["livre"], "restricao_motivos": [None]}))["situacao"]
         == "ok"
     )
+
+
+def test_sigmine_desiste_cedo_do_servidor_fora_e_completa_a_cadeia(monkeypatch, tmp_path):
+    import requests
+
+    chamadas = {"portal": 0, "arcgis": 0}
+
+    class Sessao:
+        def get(self, url, **kw):
+            if "dadosabertos" in url:
+                chamadas["portal"] += 1
+                raise requests.exceptions.ConnectionError("Connection reset by peer")
+            chamadas["arcgis"] += 1
+            if not kw.get("verify"):
+                raise requests.exceptions.SSLError("CERTIFICATE_VERIFY_FAILED unable to get local issuer certificate")
+            raise requests.exceptions.ConnectionError("fora")
+
+    pacotes = []
+    monkeypatch.setattr(RC, "cadeia_com_intermediario", lambda url, pasta: pacotes.append(url) or "ca.pem")
+    g, cob = RC.baixar_sigmine(Sessao(), ufs=["AC", "PA", "MT", "SP"], pasta_tmp=tmp_path)
+    assert cob["estado"] == "indisponivel" and cob["ufs_falharam"] == ["AC", "PA", "MT", "SP"]
+    assert chamadas["portal"] == 2  # depois de 2 quedas seguidas, o portal sai das próximas UFs
+    assert len(pacotes) == 1  # a cadeia do ArcGIS é completada uma vez, com verificação ligada
+    assert chamadas["arcgis"] == 3  # AC sem e com o pacote, PA com o pacote; MT e SP pulam
