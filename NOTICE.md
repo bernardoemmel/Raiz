@@ -12,6 +12,18 @@ protomaps/basemaps-assets (SIL OFL 1.1), para testar números reais dos grupos s
 Arquivo e licença: `front/scripts/fixtures/fontes/`; licença da família Noto Sans conferida em
 https://github.com/google/fonts/blob/main/ofl/notosans/OFL.txt. Nenhuma alteração nos glifos.
 
+## Fontes da camada de vegetação e relevo
+
+- **Mapa de Vegetação do IBGE 1:250 000** (BDiA, versão 2026, `vege_area.zip` do geoftp do IBGE): dado público, uso
+  livre com citação da fonte. Reclassificado para a reserva legal (`raiz/ambiental/vegetacao.py`); a área da Lei da
+  Mata Atlântica é aproximação nossa a partir dele (o mapa oficial do IBGE só existe em PDF).
+- **ANADEM v1** (Laipelt, L. et al., 2024, "ANADEM: A Digital Terrain Model for South America", Remote Sensing
+  16(13):2321, doi:10.3390/rs16132321; UFRGS/HGE e ANA), lido por janela de
+  `metadados.snirh.gov.br/files/anadem_v1_tiles/`. A página do dado não traz licença expressa; o código dos autores
+  (github.com/HGE-IPH/anadem) é MIT e não foi copiado. Usamos com citação e sem redistribuir os arquivos.
+- **TerraClass** (INPE/Embrapa): dado público; o código só lê o arquivo quando houver link direto (nenhum arquivo é
+  redistribuído). O cálculo de topo de morro (inundação com união de conjuntos) é nosso, sem código de terceiros.
+
 ## Fontes da camada de terra comprometida
 
 [Berkeley Carbon Trading Project, Voluntary Registry Offsets Database](https://gspp.berkeley.edu/berkeley-carbon-trading-project/offsets-database),
@@ -605,3 +617,13 @@ Tabulator **6.7.1**, Oli Folkerd ([código](https://github.com/olifolkerd/tabula
 **MIT**, e `@types/tabulator-tables` **6.3.6**, DefinitelyTyped, **MIT**: grade da pasta
 no front. Instalação travada no npm, sem CDN, módulos de exportação ou código copiado.
 Adaptações de teclado/semântica ARIA estão no componente próprio da Raíz.
+
+## Mapa da página inicial
+
+`front/globo/public/mapa/biomas.geojson` e `brasil_contorno.geojson`: limites dos biomas do IBGE
+(Biomas 1:250.000, 2019, https://geoftp.ibge.gov.br/informacoes_ambientais/estudos_ambientais/biomas/vetores/),
+simplificados pela Raíz (tolerância de cerca de 4 km). Dados públicos do IBGE, uso livre com citação da fonte.
+
+`front/globo/public/mapa/sedes_municipios.json`: coordenadas das sedes municipais de
+[kelvins/municipios-brasileiros](https://github.com/kelvins/municipios-brasileiros), **MIT**
+(Copyright (c) 2016 Kelvin S. do Prado), reduzidas a código IBGE, longitude e latitude.

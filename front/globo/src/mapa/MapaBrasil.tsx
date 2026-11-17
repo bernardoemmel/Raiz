@@ -10,6 +10,7 @@ import {
   ScaleControl,
   type GeoJSONSource,
   type SourceSpecification,
+  type ExpressionSpecification,
   type LayerSpecification,
 } from "maplibre-gl"
 import "maplibre-gl/dist/maplibre-gl.css"
@@ -32,7 +33,7 @@ import { prepararContextoMapa } from "./preparar-contexto"
 import { FonteGeojsonBlob } from "./fonte-geojson-blob"
 import { completarEstiloNacional, separarEstiloNacional } from "./estilo-progressivo"
 import { recolherAtribuicaoInicialNoCelular } from "./atribuicao-inicial"
-import { aplicarEscalaHexagonos, camadasHexagonos, descreverHexagono, fontePublicaHexagonos } from "./camadas-hexagonos"
+import { aplicarEscalaHexagonos, camadasHexagonos, descreverHexagono, fontePublicaHexagonos, OPACIDADE_HEXAGONOS } from "./camadas-hexagonos"
 import { desenhoDePontos, poligonoDesenhado } from "./desenho-area"
 import { filtroEstadosProcessados, type DadosNacionais } from "./nacional"
 import { adicionarSatelitePublico, SATELITE_PUBLICO, type EstadoSatelitePublico } from "./satelite-publico"
@@ -83,6 +84,14 @@ interface Props {
   /** espaço que a gaveta ocupa embaixo, no celular (o voo enquadra o município acima dela) */
   margemBaixo: number
   margemDireita?: number
+  /** largura do painel de filtros à esquerda, para o enquadramento não esconder o alvo atrás dele */
+  margemEsquerda?: number
+  /** bioma escolhido no filtro: contorno e véu fora dele */
+  bioma?: Geo | null
+  /** oportunidade por município (fazendas aptas e hectares que podem voltar a ser mata), agrupada em círculos */
+  oportunidades?: { cod_ibge: string; uf: string; aptas: number; ha: number }[] | null
+  /** tipos de área desligados no filtro (fazendas, ti, uc) */
+  areasOcultas?: ReadonlySet<string>
   hexagonosVisiveis?: boolean
   /** Células pertencentes a um lote autorizado pela API; a fonte pública nunca cria essa lista. */
   destaqueH3Autorizado?: readonly string[]
@@ -297,7 +306,7 @@ export function MapaBrasil(props: Props) {
       // bounds no construtor faz o MapLibre redimensionar o canvas duas vezes.
       // O enquadramento imediato usa o tamanho final antes do primeiro frame.
       const celular = window.matchMedia("(max-width: 640px)").matches
-      m.jumpTo({ center: celular ? [-52, -12] : [-47.5, -14.2], zoom: celular ? 3.1 : 3.85 })
+      m.jumpTo({ center: celular ? [-53, -13.5] : [-49.2, -15], zoom: celular ? 3.1 : 3.5 })
       margemAplicada.current = { baixo: margemBaixo, direita: props.margemDireita ?? 0 }
       await cederProcessamento()
       if (removido) return
@@ -586,12 +595,12 @@ export function MapaBrasil(props: Props) {
     if (municipio && municipioPorZoom.current === municipio) { alvoRef.current = m.getBounds(); return }
     municipioPorZoom.current = null
     alvoRef.current = alvo
-    const padding = { top: 88, left: 48, right: 48 + (props.margemDireita ?? 0), bottom: 48 + margemBaixo }
+    const padding = { top: 88, left: 48 + (props.margemEsquerda ?? 0), right: 48 + (props.margemDireita ?? 0), bottom: 48 + margemBaixo }
     const cortar = primeiraVez.current || aparelhoFraco()
     primeiraVez.current = false
     if (!uf && !municipio) {
       const celular = window.matchMedia("(max-width: 640px)").matches
-      m.easeTo({ center: celular ? [-52, -12] : [-47.5, -14.2], zoom: celular ? 3.1 : 3.85, padding: 0, duration: cortar ? 0 : 300 })
+      m.easeTo({ center: celular ? [-53, -13.5] : [-49.2, -15], zoom: celular ? 3.1 : 3.5, padding: 0, duration: cortar ? 0 : 300 })
       return
     }
     if (cortar) m.fitBounds(alvo, { padding, absolutePadding: true, duration: 0 })
@@ -605,8 +614,111 @@ export function MapaBrasil(props: Props) {
     if (!m || !pronto || !alvoRef.current || primeiraVez.current || enquadramento.current === "brasil") return
     if (margemAplicada.current.baixo === margemBaixo && margemAplicada.current.direita === (props.margemDireita ?? 0)) return
     margemAplicada.current = { baixo: margemBaixo, direita: props.margemDireita ?? 0 }
-    m.fitBounds(alvoRef.current, { padding: { top: 88, left: 48, right: 48 + (props.margemDireita ?? 0), bottom: 48 + margemBaixo }, absolutePadding: true, duration: 200 })
+    m.fitBounds(alvoRef.current, { padding: { top: 88, left: 48 + (props.margemEsquerda ?? 0), right: 48 + (props.margemDireita ?? 0), bottom: 48 + margemBaixo }, absolutePadding: true, duration: 200 })
   }, [margemBaixo, props.margemDireita, pronto])
+
+  // Fundo do país e círculos entram depois do primeiro quadro completo: a abertura no celular não espera por eles.
+  const [extrasProntos, setExtrasProntos] = useState(false)
+  useEffect(() => {
+    const m = mapaRef.current
+    if (!m || !pronto || extrasProntos) return
+    let espera: ReturnType<typeof setTimeout> | undefined
+    const liberar = () => { espera = setTimeout(() => setExtrasProntos(true), 600) }
+    m.once("idle", liberar)
+    m.triggerRepaint()
+    return () => { m.off("idle", liberar); if (espera) clearTimeout(espera) }
+  }, [pronto, extrasProntos])
+
+  // O Brasil em verde claro sobre o atlas, como na referência aprovada (contorno IBGE simplificado).
+  useEffect(() => {
+    const m = mapaRef.current
+    if (!m || !pronto || !extrasProntos || m.getSource("brasil-fundo")) return
+    let cancelado = false
+    void (async () => {
+      const geo = await fetch(import.meta.env.BASE_URL + "mapa/brasil_contorno.geojson").then(r => r.ok ? r.json() as Promise<Geo> : null).catch(() => null)
+      if (cancelado || !geo || m.getSource("brasil-fundo")) return
+      const antes = m.getStyle().layers.find(l => l.type === "line")?.id
+      m.addSource("brasil-fundo", { type: "geojson", data: geo as never })
+      m.addLayer({ id: "brasil-fundo", type: "fill", source: "brasil-fundo", maxzoom: 12, paint: { "fill-color": COR_MAPA_V2.brasil, "fill-opacity": ["interpolate", ["linear"], ["zoom"], 6, 1, 11, 0.4] } }, antes)
+    })()
+    return () => { cancelado = true }
+  }, [pronto, extrasProntos])
+
+  // Círculos de oportunidade: cada município na sede, somados em grupos pelo próprio MapLibre conforme o zoom.
+  const sedes = useRef<Record<string, [number, number]> | null>(null)
+  useEffect(() => {
+    const m = mapaRef.current
+    if (!m || !pronto || !extrasProntos) return
+    let cancelado = false
+    void (async () => {
+      sedes.current ??= await fetch(import.meta.env.BASE_URL + "mapa/sedes_municipios.json").then(r => r.ok ? r.json() : {}).catch(() => ({}))
+      if (cancelado || !sedes.current) return
+      const features = (props.oportunidades ?? []).filter(o => o.aptas > 0 && sedes.current![o.cod_ibge] && (!uf || o.uf === uf)).map(o => ({
+        type: "Feature" as const, properties: { cod_ibge: o.cod_ibge, aptas: o.aptas, ha: Math.round(o.ha) },
+        geometry: { type: "Point" as const, coordinates: sedes.current![o.cod_ibge] },
+      }))
+      const dados = { type: "FeatureCollection", features }
+      const fonte = m.getSource("oportunidades") as GeoJSONSource | undefined
+      if (fonte) { fonte.setData(dados as never); return }
+      m.addSource("oportunidades", { type: "geojson", data: dados as never, cluster: true, clusterRadius: 56, clusterMaxZoom: 8,
+        clusterProperties: { aptas: ["+", ["get", "aptas"]], ha: ["+", ["get", "ha"]] } })
+      const raio: ExpressionSpecification = ["interpolate", ["linear"], ["sqrt", ["get", "aptas"]], 1, 12, 50, 22, 300, 34, 1200, 46]
+      m.addLayer({ id: "oportunidades-circulo", type: "circle", source: "oportunidades", maxzoom: ZOOM_FAZENDAS,
+        paint: { "circle-color": COR.mataTexto, "circle-opacity": 0.94, "circle-radius": raio, "circle-stroke-color": COR.superficie, "circle-stroke-width": 1.5 } })
+      m.addLayer({ id: "oportunidades-numero", type: "symbol", source: "oportunidades", maxzoom: ZOOM_FAZENDAS,
+        filter: [">=", ["get", "aptas"], 20],
+        layout: {
+          "text-field": ["format", ["number-format", ["get", "aptas"], { locale: "pt-BR" }], { "font-scale": 1 }, "\n", {},
+            ["case", [">", ["get", "ha"], 0], ["concat", ["number-format", ["get", "ha"], { locale: "pt-BR" }], " ha"], ""], { "font-scale": 0.78 }],
+          "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["sqrt", ["get", "aptas"]], 4, 10, 300, 13],
+          "text-allow-overlap": true, "text-line-height": 1.15,
+        },
+        paint: { "text-color": COR.superficie } })
+    })()
+    return () => { cancelado = true }
+  }, [pronto, extrasProntos, props.oportunidades, uf])
+
+  useEffect(() => {
+    const m = mapaRef.current
+    if (!m || !pronto) return
+    for (const id of ["oportunidades-circulo", "oportunidades-numero"])
+      if (m.getLayer(id)) m.setLayoutProperty(id, "visibility", props.areasOcultas?.has("fazendas") || municipio ? "none" : "visible")
+  })
+
+  // Bioma do filtro: véu claro fora, contorno claro e enquadramento, sem tirar dado nenhum do mapa.
+  useEffect(() => {
+    const m = mapaRef.current
+    if (!m || !pronto) return
+    const dados = props.bioma ?? VAZIO
+    const fora = props.bioma ? mascara(props.bioma) : VAZIO
+    const antes = m.getStyle().layers.find(l => l.type === "symbol")?.id
+    if (!m.getSource("bioma-escolhido")) {
+      m.addSource("bioma-escolhido", { type: "geojson", data: dados as never })
+      m.addSource("bioma-fora", { type: "geojson", data: fora as never })
+      m.addLayer({ id: "bioma-fora", type: "fill", source: "bioma-fora", paint: { "fill-color": COR_MAPA_V2.terra, "fill-opacity": 0.5 } }, antes)
+      m.addLayer({ id: "bioma-linha", type: "line", source: "bioma-escolhido", paint: { "line-color": COR_MAPA_V2.destaque, "line-width": 2 } }, antes)
+    } else {
+      (m.getSource("bioma-escolhido") as GeoJSONSource).setData(dados as never)
+      ;(m.getSource("bioma-fora") as GeoJSONSource).setData(fora as never)
+    }
+    const limites = limitesDe(props.bioma)
+    if (limites && !uf && !municipio)
+      m.fitBounds(limites, { padding: { top: 88, left: 48 + (props.margemEsquerda ?? 0), right: 48 + (props.margemDireita ?? 0), bottom: 48 + margemBaixo }, absolutePadding: true, duration: aparelhoFraco() ? 0 : 600 })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pronto, props.bioma])
+
+  // Tipos de área desligados no filtro. Reaplica quando as camadas do município entram.
+  useEffect(() => {
+    const m = mapaRef.current
+    if (!m || !pronto) return
+    const ocultos = props.areasOcultas ?? new Set<string>()
+    const grupos: Record<string, string[]> = {
+      fazendas: ["imoveis", "imoveis-linha", "imoveis-sobrepostos", "imoveis-destaque"],
+      ti: ["ti-linha"], uc: ["uc-linha"],
+    }
+    for (const [tipo, ids] of Object.entries(grupos))
+      for (const id of ids) if (m.getLayer(id)) m.setLayoutProperty(id, "visibility", ocultos.has(tipo) ? "none" : "visible")
+  }, [pronto, regional, props.areasOcultas, geoMunicipio])
 
   // destaque vindo da tabela
   const anterior = useRef<string | null>(null)
@@ -826,10 +938,10 @@ export function MapaBrasil(props: Props) {
     const selecionados = !!atual.current.props.destaqueH3Autorizado?.length || !!atual.current.props.geometriaLoteAutorizada?.features.length
     if (legendaHexagonos.current) aplicarEscalaHexagonos(m, legendaHexagonos.current, selecionados)
     for (let faixa = 0; faixa < 6; faixa++) {
-      m.setPaintProperty(`hexagonos-faixa-${faixa}`, "fill-opacity", visivel ? selecionados ? 0.35 : 0.92 : 0)
+      m.setPaintProperty(`hexagonos-faixa-${faixa}`, "fill-opacity", visivel ? selecionados ? 0.25 : OPACIDADE_HEXAGONOS : 0)
       m.setPaintProperty(`hexagonos-lote-faixa-${faixa}`, "fill-opacity", visivel && selecionados ? 0.95 : 0)
     }
-    m.setPaintProperty("hexagonos-linha", "line-opacity", visivel ? 1 : 0)
+    m.setPaintProperty("hexagonos-linha", "line-opacity", visivel ? 0.35 : 0)
     m.setPaintProperty("hexagonos-selecionados", "line-opacity", visivel && selecionados ? 1 : 0)
     m.setPaintProperty("hexagonos-sobre", "line-opacity", visivel ? 1 : 0)
   }
@@ -934,6 +1046,14 @@ export function MapaBrasil(props: Props) {
         setPontosDesenho(pontos => [...pontos, [e.lngLat.wrap().lng, e.lngLat.lat]])
         return
       }
+      const grupo = m.getLayer("oportunidades-circulo") ? m.queryRenderedFeatures(e.point, { layers: ["oportunidades-circulo"] })[0] : undefined
+      if (grupo) {
+        const id = grupo.properties.cluster_id as number | undefined
+        if (id === undefined) { atual.current.props.aoEscolherMunicipio(String(grupo.properties.cod_ibge)); return }
+        void (m.getSource("oportunidades") as GeoJSONSource).getClusterExpansionZoom(id).then(z =>
+          m.easeTo({ center: (grupo.geometry as unknown as { coordinates: [number, number] }).coordinates, zoom: Math.min(z + 0.3, ZOOM_FAZENDAS - 0.5), duration: aparelhoFraco() ? 0 : 500 }))
+        return
+      }
       if (m.getZoom() < ZOOM_FAZENDAS && atual.current.props.hexagonosVisiveis !== false) {
         const celula = feicoes(e.point, "hexagonos")[0]
         const hex = celula && hexagonosAtuais.current.find(h => h.h3 === celula.properties.h3)
@@ -972,6 +1092,14 @@ export function MapaBrasil(props: Props) {
     })
     m.on("mousemove", (e) => {
       if (atual.current.props.desenhandoArea) { limparHex(); m.getCanvas().style.cursor = "crosshair"; return }
+      const grupo = m.getLayer("oportunidades-circulo") ? m.queryRenderedFeatures(e.point, { layers: ["oportunidades-circulo"] })[0] : undefined
+      if (grupo) {
+        const id = grupo.properties.cluster_id as number | undefined
+        if (id === undefined) { atual.current.props.aoEscolherMunicipio(String(grupo.properties.cod_ibge)); return }
+        void (m.getSource("oportunidades") as GeoJSONSource).getClusterExpansionZoom(id).then(z =>
+          m.easeTo({ center: (grupo.geometry as unknown as { coordinates: [number, number] }).coordinates, zoom: Math.min(z + 0.3, ZOOM_FAZENDAS - 0.5), duration: aparelhoFraco() ? 0 : 500 }))
+        return
+      }
       if (m.getZoom() < ZOOM_FAZENDAS && atual.current.props.hexagonosVisiveis !== false) {
         const celula = feicoes(e.point, "hexagonos")[0]
         const hex = celula && hexagonosAtuais.current.find(h => h.h3 === celula.properties.h3)
@@ -1024,11 +1152,11 @@ export function MapaBrasil(props: Props) {
       {brasil && <details className="cartografia-ajuda">
         <summary>Como ler o mapa</summary>
         {zoom < ZOOM_FAZENDAS ? <>
-          <p>Hexágonos somam fazendas cadastradas. Verde mais claro representa maior valor; não é uma avaliação da qualidade da terra. Toque para aproximar.</p>
+          <p>Cada círculo soma as fazendas do filtro nos municípios daquela região; o número de baixo são os hectares. Não é uma avaliação da qualidade da terra. Toque para aproximar.</p>
           {props.agregados?.metadados.contagens.celulas ? <>
             <p>{props.agregados.metadados.aviso}</p><p>Fonte: {props.agregados.metadados.fonte}. Atualização: {props.agregados.metadados.atualizado_em ? new Date(props.agregados.metadados.atualizado_em).toLocaleDateString("pt-BR") : "não informada"}.</p>
             <details onToggle={e => { listaHexagonosAberta.current = e.currentTarget.open; if (e.currentTarget.open) setHexagonosLista(hexagonosAtuais.current) }}>
-              <summary>Explorar hexágonos com teclado</summary>
+              <summary>Explorar regiões com teclado</summary>
               <ul className="cartografia-hexagonos-lista">{hexagonosLista.map(hex => <li key={hex.h3}><button type="button" onClick={() => { if (mapaRef.current) aproximarHexagono(mapaRef.current, hex) }}>{descreverHexagono(hex)} Aproximar.</button></li>)}</ul>
             </details>
           </> : <p>Agregados ainda não publicados. A ausência não significa área zero.</p>}

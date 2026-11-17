@@ -86,7 +86,7 @@ export async function conferirCicloMapa(navegador, base) {
     assert.equal(await direta.locator("canvas.maplibregl-canvas").count(), 1)
     assert.equal(await direta.locator(".painel-lateral").count(), 0, "O mapa V2 não pode recriar a coluna lateral.")
     const dimensoes = await direta.locator(".mapa-brasil").boundingBox()
-    assert(dimensoes && dimensoes.width >= 359 && dimensoes.height >= 799, "O mapa deve ocupar a tela inteira por baixo dos controles.")
+    assert(dimensoes && dimensoes.width >= 359 && dimensoes.height >= 739, "O mapa deve ocupar toda a tela abaixo da barra superior.")
   }
   // Os primeiros hexágonos podem aparecer antes de outras fontes e fontes tipográficas terminarem.
   // Observa a estabilidade somente depois da rede quieta e de um frame completo do mapa.
@@ -137,7 +137,7 @@ export async function conferirCicloMapa(navegador, base) {
   assert.deepEqual(await direta.evaluate(() => document.querySelector(".mapa-brasil .mapa").__hexagonos.map(h => [h.h3, h.fazendas, h.hectares, h.semMedida])), original.hexagonos)
   // A alternativa de teclado continua operável sem marcadores DOM sobre a cartografia.
   await direta.getByText("Como ler o mapa", { exact: true }).click()
-  await direta.getByText("Explorar hexágonos com teclado", { exact: true }).click()
+  await direta.getByText("Explorar regiões com teclado", { exact: true }).click()
   const botaoHexagono = direta.locator(".cartografia-hexagonos-lista button").first()
   await botaoHexagono.waitFor()
   await botaoHexagono.focus()

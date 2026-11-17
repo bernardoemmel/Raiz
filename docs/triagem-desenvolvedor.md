@@ -37,7 +37,9 @@ médio 0,6, alto 0,25). Parte sem dado sai da conta e o peso se reparte; sem cus
 
 **Travas**: embargo, terra indígena, UC de proteção integral, desmatamento depois de 2020, alerta no último ano,
 `ja_comprometida` (projeto ou concessão, `docs/terra-comprometida.md`) e caminho da terra que não origina limitam a
-nota a 30 e põem a fazenda em `nao_segue`. **Ressalva**: `risco_sobreposicao` tira de `recomendada`. A fazenda nunca
+nota a 30 e põem a fazenda em `nao_segue`. **Ressalva**: `risco_sobreposicao` tira de `recomendada`. **Gleba federal não destinada** em mais de 10% do CAR trava por padrão
+(`gleba_federal: {modo: trava}` na regra) ou vira ressalva com `--gleba-federal ressalva`; coluna `gleba_federal_pct`
+(critério em `docs/terra-comprometida.md`). A fazenda nunca
 sai da lista, **nem por ser pequena**, e código que não está nos dados fica como `nao_encontrada`.
 
 Faixas, na ordem do ranking: `recomendada` (nota >= 70, sem ressalva), `com_ressalvas`, `nao_segue`, `sem_dados`,
@@ -48,7 +50,7 @@ crédito (parte 0,94); TIR 14,0% ...; terra privada com matrícula, risco baixo.
 
 `posicao, cod_imovel, municipio, uf, faixa, nota, ha, pequena, restauracao_area_ha, credito_p50_tco2_ha,
 custo_credito_usd, tir_pct, caminho_terra, risco_terra, embargo_ha, ti_uc, desmatamento_recente_ha, alerta_recente_ha,
-status_sobreposicao, projeto_id, motivo, regra_versao, gerado_em`. Lidas pelo nome nas colunas do motor
+status_sobreposicao, projeto_id, gleba_federal_pct, motivo, regra_versao, gerado_em`. Lidas pelo nome nas colunas do motor
 (`docs/colunas.md`), com a mesma conta da oferta para o crédito (`raiz/pedidos/oferta.py`); `status_sobreposicao`
 vem de `comprometida_<mun>.csv` e, sem ele, o motivo diz "sobreposição com projetos não verificada".
 

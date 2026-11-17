@@ -10,6 +10,7 @@ fontes externas por município (assinatura barata):
   mapbiomas  os GeoTIFFs do estado (coleção nova muda tudo, uma vez por ano)
   terra      SIGEF do espelho, Cadastro Nacional de Florestas Públicas do estado, UC, TI e quilombos
   ficha e desenvolvedor: cobertura do MapBiomas do estado
+  ambiental  mapa de vegetação do IBGE e TerraClass (coleta no Release insumos) e cobertura do MapBiomas do estado
 A tarefa "carga" não entra aqui: o back-end carrega a partir do armazém (raiz/executor/sincronizar.py).
 """
 
@@ -69,6 +70,13 @@ CODIGO = {
     "comprometida": ("raiz/comprometida/status.py", "raiz/terra_comprometida.py"),
     # restrições nacionais (SICAR completo, SIGMINE, autos do Ibama, Lista Suja): também folha, mesma lógica
     "restricoes": ("raiz/restricoes/status.py", "raiz/restricoes/coleta.py"),
+    # vegetação e relevo (RL pelo mapa do IBGE, Lei da Mata Atlântica, TerraClass, APP de relevo do ANADEM): folha
+    "ambiental": (
+        "raiz/ambiental/status.py",
+        "raiz/ambiental/vegetacao.py",
+        "raiz/ambiental/relevo.py",
+        "raiz/ambiental/terraclass.py",
+    ),  # fmt: skip
     "desenvolvedor": ("raiz/restauracao.py", "raiz/restauracao_geo.py", "raiz/vazamento.py"),
 }
 DEPENDE = {
@@ -84,7 +92,8 @@ DEPENDE = {
     "rebanho": ("funil", "mapbiomas", "direto"),
     "comprometida": ("funil",),
     "restricoes": ("funil",),
-    "desenvolvedor": ("funil", "filtros", "mapbiomas", "direto", "ficha", "terra", "rebanho"),
+    "ambiental": ("funil", "mapbiomas"),
+    "desenvolvedor": ("funil", "filtros", "mapbiomas", "direto", "ficha", "terra", "rebanho", "ambiental"),
 }
 SAIDAS = {
     "funil": ("imoveis_{cod}.csv", "geo_{cod}.parquet", "certidoes_{cod}.csv"),
@@ -99,6 +108,7 @@ SAIDAS = {
     "rebanho": ("rebanho_{cod}.csv",),
     "comprometida": ("comprometida_{cod}.csv",),
     "restricoes": ("restricoes_{cod}.csv",),
+    "ambiental": ("ambiental_{cod}.csv",),
     "desenvolvedor": ("desenvolvedor_{cod}.csv",),
 }
 
@@ -143,6 +153,10 @@ def versao(nome: str) -> str:
         from raiz.restricoes import status as restricoes_status
 
         extra = restricoes_status.versao()
+    elif nome == "ambiental":
+        from raiz.ambiental import status as ambiental_status
+
+        extra = ambiental_status.versao()
     # A captura é parte do contrato da tarefa: mudança nela precisa de nova
     # execução, mesmo quando o CSV final teria os mesmos números.
     historico = (
@@ -264,6 +278,10 @@ def externas(nome: str):
             from raiz.restricoes import status as restricoes_status
 
             return {"camadas": restricoes_status.assinatura()}
+        if nome == "ambiental":
+            from raiz.ambiental import status as ambiental_status
+
+            return {"camadas": ambiental_status.assinatura(), **_rasters_uf(uf, "cobertura")}
         if nome in ("ficha", "desenvolvedor"):
             return _rasters_uf(uf, "cobertura")
         return {}
@@ -315,7 +333,22 @@ def rodar_restricoes(uf: str, cod: int, pasta: Path) -> None:
     status.escrever_municipio(pasta, int(cod), camadas=_CAMADAS_RESTRICOES[1])
 
 
-_RODAR_PROPRIO = {"comprometida": rodar_comprometida, "restricoes": rodar_restricoes}
+_CAMADAS_AMBIENTAL = None
+
+
+def rodar_ambiental(uf: str, cod: int, pasta: Path) -> None:
+    """Vegetação e relevo do município. Como a "comprometida", não passa por raiz/funil/rodar.py (mexer nele refaria o
+    funil). As camadas são lidas uma vez por processo."""
+    global _CAMADAS_AMBIENTAL
+    from raiz.ambiental import status
+
+    marca = status.assinatura()
+    if _CAMADAS_AMBIENTAL is None or _CAMADAS_AMBIENTAL[0] != marca:
+        _CAMADAS_AMBIENTAL = (marca, status.Camadas())
+    status.escrever_municipio(pasta, int(cod), camadas=_CAMADAS_AMBIENTAL[1])
+
+
+_RODAR_PROPRIO = {"comprometida": rodar_comprometida, "restricoes": rodar_restricoes, "ambiental": rodar_ambiental}
 
 
 def tarefas_producao() -> list[Tarefa]:

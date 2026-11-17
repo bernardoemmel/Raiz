@@ -1451,6 +1451,10 @@ def triagem_lote(
     saida: Annotated[str, typer.Option(help="pasta do CSV e do PDF")] = "dados/documentos/triagem",
     nome: Annotated[str, typer.Option(help="nome do ranking (minúsculas, números e hífen)")] = "triagem",
     enviar: Annotated[bool, typer.Option(help="enviar o CSV e o PDF ao arquivo privado")] = False,
+    gleba_federal: Annotated[
+        str | None,
+        typer.Option(help="mais de 10% do CAR em gleba federal não destinada: trava (padrão da regra) ou ressalva"),
+    ] = None,
 ) -> None:
     """Ranking de fazendas com nota, números e o motivo de cada nota. Só imprime contagens, nunca códigos."""
     import re
@@ -1488,7 +1492,7 @@ def triagem_lote(
                 if baixar_arquivo(f"raiz_{uf}.tar.gz", pacote, opcional=True):
                     extrair(pacote, tmp / "estados")
             pasta = str(tmp / "estados")
-        linhas = triar(lista, D.das_pastas(lista, pasta))
+        linhas = triar(lista, D.das_pastas(lista, pasta), modo_gleba=gleba_federal)
         arquivos = RL.gravar(linhas, saida, nome)
         if enviar:
             from raiz.executor.transferencia_privada import enviar_arquivo
@@ -1511,6 +1515,69 @@ def triagem_enviar_entrada(
 
     enviar_arquivo(nome, Path(arquivo))
     typer.echo(f"enviado como {nome}")
+
+
+dossie_cli = typer.Typer(
+    help="Dossiê executivo do lote por município (o que o Bot Agro montava na mão): Markdown, PDF e Word.",
+    no_args_is_help=True,
+)
+app.add_typer(dossie_cli, name="dossie")
+
+
+@dossie_cli.command("lote")
+def dossie_lote_cmd(
+    municipio: Annotated[int, typer.Option(help="código IBGE do município (ex.: 1505502, Paragominas)")],
+    pasta: Annotated[
+        str | None, typer.Option(help="saida/ do motor (com <UF>/); sem ela, baixa o estado do arquivo privado")
+    ] = None,
+    modo: Annotated[str, typer.Option(help="normal (risco vira ressalva) ou estrito (risco tira do lote)")] = "normal",
+    limites: Annotated[
+        str | None, typer.Option(help="comprometida_limites.parquet (padrão: Release insumos em cache)")
+    ] = None,
+    saida: Annotated[str, typer.Option(help="pasta do dossiê")] = "dados/documentos/dossie",
+    nome: Annotated[str | None, typer.Option(help="nome dos arquivos (minúsculas, números e hífen)")] = None,
+    enviar: Annotated[bool, typer.Option(help="enviar o dossiê ao arquivo privado")] = False,
+) -> None:
+    """Lotes de restauração do município com ressalvas, prontidão, checklist e anexo dos CARs. Não refaz o funil."""
+    import re
+    import tempfile
+    from pathlib import Path
+
+    from raiz import dossie_lote as DL
+
+    nome = nome or f"dossie-{municipio}-{modo}"
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,60}", nome):
+        raise typer.BadParameter("nome: minúsculas, números e hífen")
+    lim = None
+    if limites:
+        import geopandas as gpd
+
+        lim = gpd.read_parquet(limites)
+    with tempfile.TemporaryDirectory() as tmp:
+        if pasta is None:
+            from raiz.executor.transferencia_privada import baixar_arquivo
+            from raiz.restauracao_nacional_fontes import extrair_uf
+
+            _, uf = DL.nome_municipio(municipio)
+            for pac in (f"raiz_{uf}.tar.gz", f"raiz_geo_{uf}.tar.gz"):  # só o município sai do pacote
+                if baixar_arquivo(pac, Path(tmp) / pac, opcional=pac.startswith("raiz_geo_")):
+                    extrair_uf(Path(tmp) / pac, uf, Path(tmp) / "estados", geo=pac.startswith("raiz_geo_"),
+                               municipios={municipio})  # fmt: skip
+                    (Path(tmp) / pac).unlink()
+            pasta = str(Path(tmp) / "estados" / uf)
+        d = DL.montar(pasta, municipio, modo=modo, limites=lim)
+        arquivos = DL.gravar(d, saida, nome)
+        if enviar:
+            from raiz.executor.transferencia_privada import enviar_arquivo
+
+            for tipo, f in arquivos.items():
+                enviar_arquivo(f"{nome}.{tipo}", f)
+    typer.echo(
+        f"{d['municipio']}: {len(d['lotes'])} lotes, {sum(x['n'] for x in d['lotes'])} imóveis, "
+        f"{sum(x['ha_restauravel'] for x in d['lotes']):.0f} ha restauráveis; {d['imoveis_aptos']} aptos de "
+        f"{d['imoveis_lidos']}"
+    )
+    typer.echo(f"dossiê em {saida}/{nome}.md, .pdf, .docx e .json" + (" e no arquivo privado" if enviar else ""))
 
 
 comprometida_cli = typer.Typer(
@@ -1625,6 +1692,91 @@ def comprometida_resumo(arquivo: Annotated[str, typer.Argument(help="comprometid
     import pandas as pd
 
     from raiz.comprometida import status as ST
+
+    for k, n in ST.resumo(pd.read_csv(arquivo)).items():
+        typer.echo(f"{k:20} {n}")
+
+
+ambiental_cli = typer.Typer(
+    help="Vegetação e relevo na triagem: reserva legal pelo mapa do IBGE, Lei da Mata Atlântica, TerraClass e APP de "
+    "relevo do ANADEM.",
+    no_args_is_help=True,
+)
+app.add_typer(ambiental_cli, name="ambiental")
+
+
+@ambiental_cli.command("coletar")
+def ambiental_coletar(
+    saida: Annotated[str, typer.Option(help="pasta onde gravar os arquivos que vão ao Release insumos")],
+    zip_ibge: Annotated[str | None, typer.Option(help="vege_area.zip já baixado (senão baixa do IBGE)")] = None,
+) -> None:
+    """Baixa o Mapa de Vegetação do IBGE, classifica para a reserva legal e confere o ANADEM e o TerraClass."""
+    from raiz.ambiental import coleta as CL
+
+    m = CL.coletar(saida, zip_ibge=zip_ibge)
+    for k, v in m["fontes"].items():
+        typer.echo(f"{k:12} {v['estado']}" + (f" ({v['erro']})" if v.get("erro") else ""))
+
+
+@ambiental_cli.command("baixar")
+def ambiental_baixar(
+    tag: Annotated[str, typer.Option(help="Release de onde baixar")] = "insumos",
+    repo: Annotated[str, typer.Option(help="dono/repositório")] = "bernardoemmel/Raiz",
+) -> None:
+    """Baixa do Release insumos a vegetação classificada e a cobertura para a pasta que a tarefa lê."""
+    import httpx
+
+    from raiz.ambiental import status as ST
+
+    pasta = ST.pasta_camadas()
+    pasta.mkdir(parents=True, exist_ok=True)
+    for nome in ST.NOMES.values():
+        r = httpx.get(f"https://github.com/{repo}/releases/download/{tag}/{nome}", follow_redirects=True, timeout=900)
+        r.raise_for_status()
+        (pasta / nome).write_bytes(r.content)
+        typer.echo(f"{nome}: {len(r.content) / 1e6:.1f} MB")
+
+
+@ambiental_cli.command("recalcular")
+def ambiental_recalcular(
+    saida: Annotated[str | None, typer.Option(help="pasta saida/ do motor")] = None,
+    ufs: Annotated[str | None, typer.Option(help="só estas UFs, separadas por vírgula")] = None,
+    municipios: Annotated[str | None, typer.Option(help="só estes códigos do IBGE, separados por vírgula")] = None,
+) -> None:
+    """Refaz ambiental_<mun>.csv dos municípios cuja versão mudou (sem refazer o funil)."""
+    from pathlib import Path
+
+    import pandas as pd
+
+    from raiz.ambiental import status as ST
+    from raiz.funil.rodar import dir_trabalho
+
+    pasta = Path(saida) if saida else dir_trabalho() / "saida"
+    lista = {u.strip().upper() for u in ufs.split(",")} if ufs else None
+    cods = {int(c) for c in municipios.split(",")} if municipios else None
+    cam = ST.Camadas()
+    v = f"{ST.versao()}+{ST.assinatura() or 'sem_coleta'}"
+    feitos = em_dia = 0
+    for uf in sorted(p for p in pasta.iterdir() if p.is_dir() and (not lista or p.name.upper() in lista)):
+        for g in sorted(uf.glob("geo_*.parquet")):
+            cod = int(g.stem.split("_")[1])
+            if cods and cod not in cods:
+                continue
+            f = uf / f"ambiental_{cod}.csv"
+            if f.exists() and v in set(pd.read_csv(f, usecols=["ambiental_versao"]).ambiental_versao):
+                em_dia += 1
+                continue
+            ST.escrever_municipio(uf, cod, camadas=cam)
+            feitos += 1
+    typer.echo(f"versão {v}: {feitos} municípios refeitos, {em_dia} já em dia")
+
+
+@ambiental_cli.command("resumo")
+def ambiental_resumo(arquivo: Annotated[str, typer.Argument(help="ambiental_<mun>.csv")]) -> None:
+    """Contagem de imóveis por status e por motivo (o agregado, que é o que pode ser público)."""
+    import pandas as pd
+
+    from raiz.ambiental import status as ST
 
     for k, n in ST.resumo(pd.read_csv(arquivo)).items():
         typer.echo(f"{k:20} {n}")

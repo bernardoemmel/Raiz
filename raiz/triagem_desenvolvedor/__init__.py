@@ -15,12 +15,15 @@ from raiz.triagem_desenvolvedor import nota as N
 COLUNAS = [
     "posicao", "cod_imovel", "municipio", "uf", "faixa", "nota", "ha", "pequena", "restauracao_area_ha",
     "credito_p50_tco2_ha", "custo_credito_usd", "tir_pct", "caminho_terra", "risco_terra", "embargo_ha", "ti_uc",
-    "desmatamento_recente_ha", "alerta_recente_ha", "status_sobreposicao", "projeto_id", "motivo", "regra_versao",
+    "desmatamento_recente_ha", "alerta_recente_ha", "status_sobreposicao", "projeto_id", "gleba_federal_pct", "motivo",
+    "regra_versao",
     "gerado_em",
 ]  # fmt: skip
 
 
-def triar(codigos: list[str], dados: dict[str, dict], *, hoje: dt.date | None = None) -> list[dict]:
+def triar(
+    codigos: list[str], dados: dict[str, dict], *, hoje: dt.date | None = None, modo_gleba: str | None = None
+) -> list[dict]:
     """dados: CAR -> colunas (raiz/triagem_desenvolvedor/dados.py). Devolve uma linha por código da lista, ordenada:
     recomendadas, com ressalvas, travadas, sem dados, não encontradas; dentro de cada grupo, a maior nota primeiro."""
     r = N.regra()
@@ -32,7 +35,7 @@ def triar(codigos: list[str], dados: dict[str, dict], *, hoje: dt.date | None = 
             x = {"nota": None, "faixa": "nao_encontrada", "motivo": "código não está nos dados processados",
                  "status_sobreposicao": None}  # fmt: skip
         else:
-            x = N.avaliar(d, r)
+            x = N.avaliar(d, r, modo_gleba=modo_gleba)
             x["municipio"] = d.get("municipio") if isinstance(d.get("municipio"), str) else None
         x.update(cod_imovel=c, uf=c[:2], regra_versao=r["versao_completa"], gerado_em=hoje)
         linhas.append(x)
