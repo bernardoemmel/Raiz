@@ -608,10 +608,12 @@ Adaptações de teclado/semântica ARIA estão no componente próprio da Raíz.
 
 ## Mapa da página inicial
 
-`front/globo/public/mapa/biomas.geojson` e `brasil_contorno.geojson`: limites dos biomas do IBGE
+`front/globo/public/mapa/biomas.geojson`: limites dos biomas do IBGE
 (Biomas 1:250.000, 2019, https://geoftp.ibge.gov.br/informacoes_ambientais/estudos_ambientais/biomas/vetores/),
 simplificados pela Raíz (tolerância de cerca de 4 km). Dados públicos do IBGE, uso livre com citação da fonte.
 
 `front/globo/public/mapa/sedes_municipios.json`: coordenadas das sedes municipais de
 [kelvins/municipios-brasileiros](https://github.com/kelvins/municipios-brasileiros), **MIT**
-(Copyright (c) 2016 Kelvin S. do Prado), reduzidas a código IBGE, longitude e latitude.
+(Copyright (c) 2016 Kelvin S. do Prado), reduzidas a código IBGE, longitude e latitude, mais o bioma do IBGE
+em que a sede cai (índice na ordem do IBGE; sedes do litoral fora do contorno simplificado ficam com o bioma mais próximo).
+O contorno do Brasil da prévia do mapa (`front/globo/src/mapa/PreviaBrasil.tsx`) vem dos mesmos biomas do IBGE, unidos.

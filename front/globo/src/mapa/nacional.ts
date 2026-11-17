@@ -28,10 +28,11 @@ export function camadasNacionais(processadas: readonly string[] = []): LayerSpec
   const add = (camada: LayerSpecification) => { camadas.push(camada) }
   // As cores constantes reutilizam os programas gráficos do fundo. Os filtros são mutuamente exclusivos.
   const processado = filtroEstadosProcessados(processadas)
-  add({ id: "estados-preenchimento", type: "fill", source: "brasil-estados", filter: processado as never,
-    paint: { "fill-antialias": false, "fill-color": COR_MAPA_V2.terra, "fill-opacity": 0 } })
-  add({ id: "estados-sem-dados", type: "fill", source: "brasil-estados", filter: ["!", processado] as never,
-    paint: { "fill-antialias": false, "fill-color": COR_MAPA_V2.terra, "fill-opacity": 0 } })
+  // O Brasil em verde claro sobre o atlas (referência aprovada), no mesmo desenho dos estados: sem fonte extra.
+  // Some ao aproximar, para não tingir os limites do CAR.
+  const fundo = { "fill-antialias": false, "fill-color": COR_MAPA_V2.brasil, "fill-opacity": ["interpolate", ["linear"], ["zoom"], 6, 1, 8, 0] } as const
+  add({ id: "estados-preenchimento", type: "fill", source: "brasil-estados", filter: processado as never, paint: fundo as never })
+  add({ id: "estados-sem-dados", type: "fill", source: "brasil-estados", filter: ["!", processado] as never, paint: fundo as never })
   // divisa dos estados; o estado sob o dedo ou o mouse (na escala do país) e o escolhido ganham o contorno em tinta
   add({
     id: "estados-linha",
