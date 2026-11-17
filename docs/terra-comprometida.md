@@ -186,8 +186,8 @@ triagem leva `gleba_federal_pct` no ranking. Sem medição nada é cortado e o t
 (`raiz_geo_PA.tar.gz`) e o CNFP 2025: nenhuma gleba federal não destinada toca os dois CAR (0%), e o SIGEF do INCRA
 mostra os dois 100% dentro de parcela particular registrada (Fazenda Santa Lucia, 1.266 ha; Fazenda Transprogresso II,
 1.094 ha). Pelo critério, **os dois ficam no lote**. A base REDD+ do Pará (Zenodo 23929936) também não traz gleba
-sobre eles. O teste `testes/test_gleba_federal.py::test_paragominas_d4386947_e_ce800c8a` refaz a conta quando os
-arquivos estão na máquina (`RAIZ_TESTE_GEO_PARAGOMINAS`).
+sobre eles. O teste `testes/test_gleba_federal.py::test_paragominas_croata_no_cnfp_2025` refaz a conta no CI com recortes
+reais em `testes/fixtures/` e confere quem está de fato na gleba Croatá: 0A690BF4 (53%) e 011CEC9E (30%).
 
 ## Coletar e atualizar no servidor privado
 
