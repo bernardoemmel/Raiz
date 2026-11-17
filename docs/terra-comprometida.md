@@ -96,9 +96,40 @@ município; o funil dos prontos não muda (o `projetos_carbono.tar.gz` não entr
 `projeto_carbono_ha` só muda num município reprocessado; a resposta certa para o comprador está em
 `status_sobreposicao`).
 
-O pacote manual de 16/11 (`pacote_limites_carbono_leve.zip`, 389 polígonos de 227 projetos) serviu para conferir a
-coleta automática; não entra no git nem no Release (a InfoAmazonia e a Verra não declaram licença de redistribuição).
-A tabela CAR × projeto do Pará (Zenodo 23929936) também não é publicada: o cruzamento geométrico já a reproduz.
+### Pacote manual de limites (16/11/2026): o que já estava, o que entrou
+
+O `pacote_limites_carbono_leve.zip` (389 polígonos de 227 projetos; Verra, InfoAmazonia, Renoster, GeoPackage do Pará,
+SFB e Berkeley, mais a lista CAR × REDD+ do Pará) não entra no git nem no Release: a InfoAmazonia e a Verra não declaram
+licença de redistribuição, e o pacote é para análise interna. Como indício adicional, cada fonte dele foi comparada com
+o que a coleta automática já faz:
+
+| Fonte do pacote | Já na coleta automática? | Tratamento |
+|---|---|---|
+| Verra, KML "Project Boundary" (167 geometrias, 157 projetos) | Sim (`verra`) | oficial; o pacote não substitui nem acrescenta |
+| Verra, KML só como "Other" (25 geometrias, **19 projetos**; 10 não aparecem em nenhuma outra fonte) | **Não** | **entra agora, como indício** (abaixo) |
+| InfoAmazonia, "Carbono sujo" (111 projetos) | Sim (`infoamazonia_carbono`, #146) | indício, já integrada |
+| GeoPackage REDD+ do Pará, Zenodo 23929936 (24 projetos) | Sim (`para_redd_zenodo`, #146) | indício, já integrado |
+| Renoster, Zenodo 11459391 (40 geometrias no Brasil) | Sim (`limites_pesquisa`) | indício, já integrado |
+| SFB, concessões federais (22 UMFs) | Sim (`sfb_concessoes`) | oficial, já integrado |
+| Berkeley VROD v2026-08 | Sim (`berkeley`) | só catálogo, sem geometria |
+| Lista CAR × REDD+ do Pará (5.479 CAR, 22 projetos) | Não é fonte: o cruzamento geométrico a reproduz | **vira conferência** (abaixo) |
+
+**Verra com KML só como "Other".** O coletor da Verra só aceitava o documento do tipo "Project Boundary (KML File)".
+Projeto sem ele, mas com `.kml` ou `.kmz` publicado como "Other", ficava só no catálogo, e o imóvel dentro dele saía
+`livre`. Agora, quando não há "Project Boundary", os `.kml` e `.kmz` do projeto entram como `poligono_secundario`
+(indício): sozinhos dão `risco_sobreposicao`, nunca `ja_comprometida`. Com "Project Boundary" presente, os "Other" são
+ignorados. KMZ é lido na memória (zip com limite de tamanho, só o primeiro `.kml`); KMZ corrompido vira projeto sem
+geometria, sem derrubar a fila. O filtro de tamanho (limite suspeito e amplo) vale para esses polígonos como para os
+demais. Prioridade quando as fontes divergem: Verra oficial, depois Pará/Zenodo (nov/2026), InfoAmazonia (2025) e
+Renoster (2024); o indício nunca conta de novo a área já confirmada.
+
+**Conferência contra a lista CAR × REDD+ do Pará.** A lista (Zenodo 23929936, CC BY 4.0; CAR, projeto e hectares de
+sobreposição) é independente do nosso cruzamento. `raiz comprometida conferir-pacote <lista.csv> --saida <saida/>
+--lacunas lacunas.csv` compara, para cada CAR listado com 5 ha ou mais, o status de `comprometida_<mun>.csv`: concorda
+quando é `ja_comprometida` ou `risco_sobreposicao`; é **lacuna** quando sai `livre` ou `nao_verificado` (limite que
+falta na coleta, geometria do CAR diferente); município sem arquivo fica `sem_arquivo` (ainda não processado). Só saem
+código do CAR, identificador do projeto e hectares. Rodar depois de cada coleta nova, nos estados do Pará já
+processados, e olhar os `projetos_nas_lacunas`.
 
 ## No pedido de lote (o que o Bot Agro fazia na mão)
 
@@ -197,3 +228,34 @@ Os limites da InfoAmazonia (sem licença declarada, derivados dos KML dos regist
 da Verra. Berkeley, as duas bases do Zenodo (CC BY 4.0) e a InfoAmazonia levam atribuição no manifesto. O parquet publicado
 traz só identificador, situação, UF e geometria dos limites: nada de CNPJ, empresa ou CAR. Fora do escopo: Gold Standard, averbação na matrícula
 e cota vendida.
+
+## Caminho da terra sem SIGEF no espelho (correção de 17/11/2026)
+
+**O problema.** A etapa `terra` (raiz/terra.py) mede a sobreposição do CAR com o SIGEF do espelho
+(`sigef/<UF>/<mun>.parquet`). O funil não depende desse arquivo: quando ele falta, o motor baixa o SIGEF pela caixa
+do município e grava `matricula_ha`, `sigef_ha` e `f_matricula` na tabela de imóveis. A etapa de terra, sem o
+arquivo, gravava **0** em todas as colunas `terra_sigef_*_ha`, e o 0 medido ganhava da coluna do motor. Resultado no
+Pará: 98,8% dos imóveis viraram `posse_em_titulacao` e nenhum `privada_matricula`, embora o motor mostrasse quase
+38 mil com matrícula; essas fazendas saíam do lote (só a privada com matrícula é pronta agora).
+
+**A regra agora (caminho-terra-2026b).**
+
+- Falta de SIGEF nunca apaga matrícula. Sem o SIGEF do espelho, `terra_sigef_*_ha` ficam **vazias** (nunca 0) e a
+  nova coluna `terra_sigef_disponivel` fica `False`.
+- Sem SIGEF medido, matrícula, posse e assentamento vêm da tabela de imóveis do motor (`matricula_ha`, ou
+  `f_matricula × ha`; `sigef_ha`; `assentamento_ha`), a fonte mais confiável nesse caso. As camadas que não dependem
+  do SIGEF (florestas públicas, UC, terras indígenas, quilombos, concessões) continuam medidas.
+- `terra_fonte` ganha o valor `sobreposicao_sem_sigef` (camadas medidas, matrícula do motor), e o motivo da privada
+  com matrícula diz "cobertura da tabela de imóveis do motor".
+- Arquivos `terra_<mun>.csv` antigos (sem `terra_sigef_disponivel`) com todas as `terra_sigef_*_ha` em 0, num imóvel
+  onde o motor achou SIGEF ou matrícula, são lidos como "SIGEF ausente", não como "sem matrícula".
+- Com o SIGEF medido de verdade (`terra_sigef_disponivel = True`), a medida do espelho continua valendo.
+- A etapa avisa no log quando um município rodou sem SIGEF e devolve `sem_sigef` no resumo.
+
+**Reprocessamento.** Só a etapa `terra` (e o que lê a saída dela, se mudar) roda de novo: a versão da tarefa é o
+hash de raiz/terra.py mais a versão da regra, que subiu para `caminho-terra-2026b`. O funil dos municípios prontos
+não é refeito. Para refazer só a terra à mão: `raiz terra recalcular --ufs PA`.
+
+**Teste.** `testes/test_terra.py` cobre o município da amostra (1504950) rodando sem SIGEF no espelho: antes da
+correção, 880 de 880 imóveis saíam como posse; agora os 55 com matrícula em metade do CAR ou mais voltam a
+`privada_matricula` e os 57 lotes de assentamento voltam a `assentamento`.

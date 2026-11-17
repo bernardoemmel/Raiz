@@ -13,6 +13,7 @@ das colunas do motor (matricula_ha, sigef_ha, assentamento_ha, ti_ha, quilombo_h
 from __future__ import annotations
 
 import hashlib
+import logging
 import math
 from functools import lru_cache
 from pathlib import Path
@@ -20,6 +21,7 @@ from pathlib import Path
 import yaml
 
 PADROES = Path(__file__).parent / "regras" / "padroes"
+log = logging.getLogger(__name__)
 ARQ_REGRA = PADROES / "caminho_terra.yaml"
 ARQ_CONCESSOES = PADROES / "concessoes.yaml"
 CAMINHOS = (
@@ -84,20 +86,48 @@ def _bool(linha: dict, c: str) -> bool:
     return bool(v) if v is not None and not (isinstance(v, float) and math.isnan(v)) else False
 
 
+SIGEF_COLUNAS = (
+    "terra_sigef_registrada_ha",
+    "terra_sigef_titulacao_ha",
+    "terra_sigef_posse_ha",
+    "terra_sigef_assentamento_ha",
+    "terra_sigef_assentamento_titulado_ha",
+)
+
+
+def sigef_medido(linha: dict) -> bool:
+    """A sobreposição com o SIGEF do espelho vale só quando o SIGEF estava lá. Sem ele, as colunas terra_sigef_*
+    ficam vazias e a matrícula vem da tabela de imóveis (matricula_ha do motor, que mede o SIGEF baixado).
+
+    Arquivos gravados antes da coluna terra_sigef_disponivel escreviam 0 em tudo quando o SIGEF faltava: tudo zero
+    com o motor achando SIGEF no imóvel é falta de SIGEF, não ausência de matrícula (nunca apagar a matrícula)."""
+    disp = linha.get("terra_sigef_disponivel")
+    if disp is not None and not (isinstance(disp, float) and math.isnan(disp)):
+        if not _bool(linha, "terra_sigef_disponivel"):
+            return False
+    valores = [_num(linha, c) for c in SIGEF_COLUNAS]
+    if all(v is None for v in valores):
+        return False
+    if disp is None or (isinstance(disp, float) and math.isnan(disp)):
+        if sum(v or 0.0 for v in valores) == 0 and (_n0(linha, "sigef_ha") > 0 or _n0(linha, "matricula_ha") > 0):
+            return False
+    return True
+
+
 def entradas(linha: dict) -> dict:
     """Áreas (ha) de cada situação da terra no imóvel. Prefere a sobreposição medida pelo produto (terra_*_ha) e cai
     para as colunas do motor quando ela não existe."""
     ha = _n0(linha, "ha") or _n0(linha, "area")
-    medido = _num(linha, "terra_sigef_registrada_ha") is not None
-    mat = _num(linha, "terra_sigef_registrada_ha")
+    medido = sigef_medido(linha)
+    mat = _num(linha, "terra_sigef_registrada_ha") if medido else None
     if mat is None:
         mat = _num(linha, "matricula_ha")
         if mat is None:
             mat = (_num(linha, "f_matricula") or 0.0) * ha
-    assent = _num(linha, "terra_sigef_assentamento_ha")
+    assent = _num(linha, "terra_sigef_assentamento_ha") if medido else None
     if assent is None:
         assent = _n0(linha, "assentamento_ha")
-    posse = _num(linha, "terra_sigef_posse_ha")
+    posse = _num(linha, "terra_sigef_posse_ha") if medido else None
     if posse is None:  # do motor: SIGEF que não é matrícula nem assentamento
         posse = max(_n0(linha, "sigef_ha") - mat - assent, 0.0)
     trad = _num(linha, "terra_tradicional_ha")
@@ -106,14 +136,20 @@ def entradas(linha: dict) -> dict:
     publica = _num(linha, "terra_publica_ha")
     if publica is None:  # do motor só se sabe da proteção integral (sem a gleba pública)
         publica = _n0(linha, "uc_protecao_integral_ha")
+    if medido:
+        fonte = "sobreposicao"
+    elif _num(linha, "terra_publica_ha") is not None or _num(linha, "terra_tradicional_ha") is not None:
+        fonte = "sobreposicao_sem_sigef"  # camadas medidas; matrícula, posse e assentamento das colunas do motor
+    else:
+        fonte = "motor"
     return {
         "ha": ha,
-        "fonte": "sobreposicao" if medido else "motor",
+        "fonte": fonte,
         "matricula": mat,
-        "titulacao": _n0(linha, "terra_sigef_titulacao_ha"),
+        "titulacao": _n0(linha, "terra_sigef_titulacao_ha") if medido else 0.0,
         "posse_sigef": posse,
         "assentamento": assent,
-        "assentamento_titulado": _n0(linha, "terra_sigef_assentamento_titulado_ha"),
+        "assentamento_titulado": _n0(linha, "terra_sigef_assentamento_titulado_ha") if medido else 0.0,
         "ast": str(linha.get("tipo_imovel") or "").upper() == "AST",
         "publica": min(publica, ha) if ha else publica,
         "tradicional": trad,
@@ -162,6 +198,8 @@ def caminho(linha: dict, r: dict | None = None) -> dict:
     elif fr(e["matricula"]) >= L["fracao_caminho"]:
         cam = "privada_matricula"
         motivo = f"Matrícula achada no SIGEF em {_pct(e['matricula'], ha)} do CAR."
+        if e["fonte"] != "sobreposicao":
+            motivo = motivo[:-1] + " (cobertura da tabela de imóveis do motor)."
     else:
         cam = "posse_em_titulacao"
         if e["titulacao"] > 0:
@@ -463,9 +501,16 @@ def sobreposicoes(imoveis, sigef, camadas: dict) -> dict[str, dict]:
         for c in cods:
             por[c][nome] = round(a.get(c, 0.0), 4)
 
-    cls = classes_sigef(sigef) if sigef is not None and len(sigef) else {k: None for k in SIGEF_CLASSES}
+    tem_sigef = sigef is not None and len(sigef) > 0
+    cls = classes_sigef(sigef) if tem_sigef else {k: None for k in SIGEF_CLASSES}
+    for c in cods:
+        por[c]["terra_sigef_disponivel"] = tem_sigef
     for k in ("registrada", "titulacao", "posse", "assentamento", "assentamento_titulado"):
-        grava(f"terra_sigef_{k}_ha", cls.get(k))
+        if tem_sigef:
+            grava(f"terra_sigef_{k}_ha", cls.get(k))
+        else:  # sem SIGEF não se mede: vazio (nunca 0), e a matrícula vem das colunas do motor
+            for c in cods:
+                por[c][f"terra_sigef_{k}_ha"] = None
     fontes_publicas = (cls.get("gleba_publica"), camadas.get("cnfp_nao_destinada"), camadas.get("uc_publica"))
     publicas = [g[["geometry"]].to_crs(4674) for g in fontes_publicas if g is not None and len(g)]
     grava("terra_publica_ha", gpd.GeoDataFrame(pd.concat(publicas), crs=4674) if publicas else None)
@@ -547,7 +592,12 @@ def escrever_municipio(pasta: Path, cod: int, cache_motor: Path | None = None) -
     tmp = f.with_suffix(".tmp")
     t.to_csv(tmp, index=False)
     tmp.replace(f)
-    return {"imoveis": len(t), **{c: int((t.caminho_terra == c).sum()) for c in CAMINHOS}}
+    out = {"imoveis": len(t), **{c: int((t.caminho_terra == c).sum()) for c in CAMINHOS}}
+    if "terra_sigef_disponivel" in t and not t.terra_sigef_disponivel.fillna(False).astype(bool).all():
+        out["sem_sigef"] = True
+        log.warning("terra %s/%s: SIGEF do espelho ausente; matrícula lida da tabela de imóveis", Path(pasta).name,
+                    cod)  # fmt: skip
+    return out
 
 
 def recalcular(saida: str | Path, ufs: list[str] | None = None, cache_motor: Path | None = None) -> dict:

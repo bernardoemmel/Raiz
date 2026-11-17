@@ -14,3 +14,10 @@
 - Norte do produto: `docs/cena-alvo.md` (o cliente pede "1 milhão de créditos" e o mapa monta o melhor lote). Todo trabalho deve aproximar essa cena.
 - Entrega: ao terminar, puxe a main, resolva os conflitos, abra o PR e, com o CI verde, faça você mesmo o merge na main.
   Não precisa pedir permissão ao fundador nem esperar outra sessão. Nunca force-push na main.
+- Main protegida: todo código entra por PR, com os checks do CI verdes (agentes, workflows, segredos, front,
+  seguranca, testes_python, referencia_para, checagens, e2e, carga, mcp). Proibido push direto, force-push e apagar
+  a main, inclusive para administradores. Não há review humano obrigatório: com o CI verde, quem abriu o PR faz o merge.
+  Nunca desligue, pule ou marque como opcional um check para conseguir mergear; conserte o que falhou.
+- Automações não gravam na main. Workflows publicam em Releases, tags de trava ou no Pages; se um workflow precisar
+  mudar arquivo do repositório, ele abre um PR. O painel do `motor/README.md` não é mais regravado pelo Actions
+  (a situação dos estados fica no `estados.json` do Release `dados`). Configuração da proteção: `docs/protecao-main.md`.

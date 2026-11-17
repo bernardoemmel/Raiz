@@ -287,3 +287,60 @@ def test_prova_do_car_sem_codigo_explicito_e_recusada(snapshot):
     snapshot["eventos"][0]["car_fonte_url"] = "https://www.gov.br/florestal/anexo.pdf"
     with pytest.raises(Q.ErroCalendarioPublico):
         Q.projetar_snapshot(snapshot)
+
+
+@pytest.mark.parametrize(
+    "erro",
+    [
+        Q.AVISO_SEM_ADAPTADOR.format(ufs="DF, PB, SP"),
+        Q.AVISO_FALHA_INESPERADA.format(tipo="ConnectionError"),
+        Q.AVISO_RESTRITO + " " + Q.AVISO_SEM_DATA + " " + Q.AVISO_LIMITE,
+        Q.AVISO_PAGINAS.format(n=3) + " " + Q.AVISO_SEM_DATA + " " + Q.AVISO_COBERTURA_PARCIAL,
+        "Há atos cuja data não pôde ser confirmada.",
+    ],
+)
+def test_todos_os_avisos_que_a_coleta_escreve_passam_na_validacao(tmp_path, snapshot, erro):
+    # Antes, avisos reais da coleta (diário sem adaptador, acesso restrito, cobertura parcial) bloqueavam o
+    # calendário inteiro na validação e o workflow falhava mesmo com a coleta certa.
+    snapshot["fontes"][0].update(situacao="erro", erro=erro)
+    _publicar(tmp_path, snapshot)
+    assert Q.validar_pasta(tmp_path)["fontes"] == 1
+
+
+@pytest.mark.parametrize(
+    "erro",
+    [
+        "Diário ainda sem adaptador: fulano de tal",
+        "falha inesperada ao ler a fonte (Erro com espaço); consulte a fonte oficial.",
+        Q.AVISO_LIMITE + " CPF " + CPF,
+        Q.AVISO_LIMITE + "  " + Q.AVISO_SEM_DATA,
+    ],
+)
+def test_texto_livre_junto_dos_avisos_continua_bloqueado(tmp_path, snapshot, erro):
+    snapshot["fontes"][0].update(situacao="erro", erro=erro)
+    _publicar(tmp_path, snapshot)
+    with pytest.raises(ValueError):
+        Q.validar_pasta(tmp_path)
+
+
+def test_cobertura_sem_adaptador_e_falha_inesperada_da_coleta_real_passam(tmp_path, snapshot):
+    from raiz.calendario import coleta
+
+    agora = dt.datetime(2026, 11, 17, 9, 11, tzinfo=dt.UTC)
+    _, cobertura = coleta.coletar_fonte({"id": "cobertura_diarios", "sem_fonte": ["SP", "DF"]}, agora)
+
+    def quebra(*_):
+        raise RuntimeError("texto que não pode vazar")
+
+    fonte = {"id": "sfb", "nome": "Serviço Florestal Brasileiro"}
+    original = coleta.coletar_fonte
+    coleta.coletar_fonte = quebra
+    try:
+        _, falha = coleta._isolada(fonte, agora, None, ())
+    finally:
+        coleta.coletar_fonte = original
+    for estado in (cobertura, falha):
+        snapshot["fontes"] = [json.loads(estado.model_dump_json())]
+        snapshot["fontes"][0].setdefault("sem_data", 0)
+        _publicar(tmp_path, snapshot)
+        assert Q.validar_pasta(tmp_path)["fontes"] == 1
