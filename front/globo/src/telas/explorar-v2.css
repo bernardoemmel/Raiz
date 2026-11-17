@@ -2,7 +2,7 @@
 .explorar-v2 .topo.topo-v2-mapa { position: absolute; }
 .explorar-v2-mapa { position: absolute; inset: 60px 0 0; overflow: hidden; }
 .explorar-v2-mapa > .mapa-area { position: absolute; inset: 0; }
-.explorar-v2 .mapa-brasil { background: var(--chao); }
+.explorar-v2 .mapa-brasil { background: transparent; } /* a prévia do index.html aparece até o primeiro quadro */
 .filtro-v2 { display: inline-flex; gap: 8px; align-items: center; white-space: nowrap; }
 .filtro-v2 span { color: var(--pedra); font: 500 12px var(--n); }
 .cartao-v2-posicao { position: absolute; bottom: 16px; left: 16px; width: 400px; z-index: 3; }
