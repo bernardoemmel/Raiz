@@ -69,6 +69,10 @@ VAGAS = max(0, min(15, int(os.environ.get("RAIZ_VAGAS", 15))))
 # fila de manutenção (tarefa nova, código mudado ou reconferência em estado com o funil pronto): no máximo isto, e só
 # com as vagas que sobram dos estados novos
 VAGAS_MANUTENCAO = int(os.environ.get("RAIZ_VAGAS_MANUTENCAO", 4))
+# reprocessamento progressivo (docs/reprocessamento-progressivo.md): enquanto os 27 funis não fecham, no máximo isto
+# de estados com o funil pronto sendo refeitos com as regras novas ao mesmo tempo (cada job baixa o estado inteiro; a
+# cota de downloads do GitHub é do repositório todo). 0 desliga.
+VAGAS_REPROCESSAMENTO = max(0, int(os.environ.get("RAIZ_VAGAS_REPROCESSAMENTO", 2)))
 DIAS_TENTADO = 6  # o "próximo da fila" não pega de novo estado tentado há menos que isto (a rodada semanal pega)
 WORKFLOW = os.environ.get("RAIZ_WORKFLOW", "processar-estados.yml")
 
@@ -248,6 +252,20 @@ ETAPAS_DO_FUNIL = ("filtros", "mapbiomas", "direto", "extras_direto")
 LANES_REDUZIDAS = {"BA": 2, "MG": 2, "SC": 2, "PR": 2, "RS": 2, "PE": 2, "SP": 2}
 
 
+def precisa_reprocessar(e: dict | None, atual_exec: dict | None) -> str | None:
+    """Por que um estado com o funil pronto precisa ser refeito com as regras novas (None: já está em dia).
+    Usa a avaliação que o publicador grava no índice privado (raiz/executor/reprocessamento.py): todos os municípios
+    com todas as tarefas na versão do código atual."""
+    if not e or not atual_exec:
+        return None
+    r = e.get("reprocessamento") if isinstance(e.get("reprocessamento"), dict) else {}
+    if r.get("situacao") == "atualizado" and r.get("versoes") == dict(sorted(atual_exec.items())):
+        return None
+    if r and r.get("versoes") == dict(sorted(atual_exec.items())):
+        return f"reprocessar com as regras novas: {r.get('prontos', 0)} de {r.get('total', 0)} municípios em dia"
+    return "reprocessar com as regras novas"
+
+
 def lanes(uf: str) -> str:
     """Lanes do executor: o LANES do workflow (padrão 3), com menos nos estados que derrubaram a máquina."""
     base = int(os.environ.get("LANES", "3"))
@@ -285,9 +303,12 @@ def planejar(pedidos: list[str], refazer: set[str], modo: str = "automatico", li
     prioridade = prioridade_solicitada and len(funis_prontos) < len(S.TOTAL_IBGE)
     falhas_funil = {uf: (e.get("versoes") or {}).get("funil") for uf, e in pub.items()
                    if e.get("erros") or any(f.get("erros") for f in ((e.get("motor") or {}).get("fatias") or {}).values())}
+    pedidos_reprocessar: list[str] = []
     if prioridade:
         from fila_processamento import ORDEM_FUNIL
         ordem = [uf for uf in ORDEM_FUNIL if uf in S.ORDEM]
+        if VAGAS_REPROCESSAMENTO and not refazer:
+            pedidos_reprocessar = [u for u in pedidos if S.ler_unidade(u)[0] in funis_prontos]
         pedidos = [u for u in pedidos if S.ler_unidade(u)[0] not in funis_prontos]
         if refazer:
             raise ValueError("manutenção suspensa até concluir os 27 funis; pedido de refazer preservado sem execução")
@@ -308,14 +329,28 @@ def planejar(pedidos: list[str], refazer: set[str], modo: str = "automatico", li
     vagas = max(0, min(VAGAS, 15) - len(ativas) - planejando)
     vagas_manut = vagas if pedidos else max(0, VAGAS_MANUTENCAO - manut_ativas)
     filas = {"novo": [], "manutencao": []}
+    reprocessar: list[str] = []
+    explicito = bool(pedidos or pedidos_reprocessar)
     linhas, prontas = [], 0
     for uf in ordem:
         e = pub.get(uf)
         for u in S.unidades(uf):
             if prioridade and uf in funis_prontos:
-                prontas += 1
+                razao_r = ("pedido: reprocessar com as regras novas" if u in pedidos_reprocessar else
+                           precisa_reprocessar(e, atual_exec) if VAGAS_REPROCESSAMENTO and not explicito else None)
+                if not razao_r:
+                    prontas += 1
+                elif ocupada(u):
+                    linhas.append((u, e, f"{razao_r} (já rodando)", None))
+                elif (u not in pedidos_reprocessar and modo == "proximo" and e
+                      and tentado_ha_pouco(e, S.ler_unidade(u)[1])
+                      and (e.get("reprocessamento") or {}).get("versoes") == dict(sorted((atual_exec or {}).items()))):
+                    linhas.append((u, e, f"{razao_r} (tentada há pouco; fica para a rodada semanal)", None))
+                else:
+                    reprocessar.append(u)
+                    linhas.append((u, e, razao_r, "reprocessamento"))
                 continue
-            if pedidos:
+            if explicito:
                 if u not in pedidos:
                     continue
                 razao, mudou, classe = "pedido" + (f" (refazer {', '.join(sorted(refazer))})" if refazer else ""), False, "novo"
@@ -337,6 +372,8 @@ def planejar(pedidos: list[str], refazer: set[str], modo: str = "automatico", li
     escolhidas = filas["novo"][:vagas]
     if modo != "fila" and not prioridade:
         escolhidas += filas["manutencao"][:max(0, min(vagas - len(escolhidas), vagas_manut))]
+    if prioridade:
+        escolhidas += reprocessar[:max(0, min(vagas - len(escolhidas), VAGAS_REPROCESSAMENTO))]
     matriz = escolhidas
     if no_actions:
         from fila_processamento import reservar
@@ -348,6 +385,12 @@ def planejar(pedidos: list[str], refazer: set[str], modo: str = "automatico", li
         candidatos = filas["novo"] if modo == "fila" else filas["novo"] + filas["manutencao"]
         opcoes = {"funis_prontos": funis_prontos, "falhas_funil": falhas_funil,
                   "versao_funil": (atual_exec or {}).get("funil")} if prioridade_solicitada else {}
+        if prioridade and reprocessar:
+            opcoes.update(reprocessar=reprocessar, limite_reprocessamento=VAGAS_REPROCESSAMENTO)
+            if pedidos_reprocessar:
+                pedidos = pedidos + pedidos_reprocessar
+            else:
+                candidatos = candidatos + reprocessar
         matriz = reservar(candidatos, pedidos, refazer, _e_unidade, VAGAS, continuacao,
                           None, manutencao, 0 if prioridade else VAGAS_MANUTENCAO, **opcoes)
         escolhidas = [p["unidade"] for p in matriz]
@@ -361,7 +404,8 @@ def planejar(pedidos: list[str], refazer: set[str], modo: str = "automatico", li
                 f"{f' (mais {planejando} vagas reservadas por planejamentos)' if planejando else ''}")
     texto = (f"### Plano desta rodada ({'pedido' if pedidos else modo})\n\n"
              f"{ocupacao}. Vagas: {VAGAS} "
-             f"(manutenção até {VAGAS_MANUTENCAO}). Começam agora: {len(escolhidas)}. Prontas: {prontas}.\n\n"
+             f"(manutenção até {VAGAS_MANUTENCAO}; reprocessamento com regras novas até {VAGAS_REPROCESSAMENTO}). "
+             f"Começam agora: {len(escolhidas)}. Prontas: {prontas}.\n\n"
              "| Unidade | Municípios do estado | Fila | O que fazer | |\n|---|---|---|---|---|\n" + "\n".join(tabela))
     texto += f"\n\nVersão das tarefas: {', '.join(f'{v}' for v in (atual_exec or atual).values())}"
     print(texto)

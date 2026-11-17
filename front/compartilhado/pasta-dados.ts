@@ -30,6 +30,8 @@ import { baseDoMunicipio, montarFicha, type BaseMunicipio, type FichaJson } from
 import { aptidao, COLUNAS_APTIDAO, lerFunil, lerImovel } from "./dados/funil"
 import { lerProcessamentoEstados, situacaoProcessamento, type ProcessamentoEstado, type ProcessamentoEstados } from "./dados/processamento-estados"
 import { lerProcessamentoPublicado } from "./dados/processamento-publicado"
+import { lerReprocessamento, type Reprocessamento } from "./dados/reprocessamento"
+import REGRAS_VIGENTES from "../../raiz/executor/regras_vigentes.json"
 import type { EstadoDados, Estados, FunilMunicipio, Geo, Imovel } from "./dados/tipos"
 import { UFS, ufDoCodigo } from "./formato"
 import { LISTA_IBGE, municipiosDoEstado } from "./ibge-municipios"
@@ -437,6 +439,24 @@ export function abrirPasta(opcoes: OpcoesPasta) {
     return dado
   }
 
+  /** reprocessamento.json (baixar-dados.mjs): estados com regras novas, sendo refeitos ou com regras antigas */
+  let reprocessamento: { mtime: number; dado: Reprocessamento | null } | null = null
+  function lerReprocessamentoLocal(): Reprocessamento | null {
+    const arq = path.join(dir, "reprocessamento.json")
+    if (!fs.existsSync(arq)) return null
+    const mtime = fs.statSync(arq).mtimeMs
+    if (reprocessamento?.mtime === mtime) return reprocessamento.dado
+    let dado: Reprocessamento | null = null
+    try {
+      dado = lerReprocessamento(JSON.parse(fs.readFileSync(arq, "utf8")))
+      if (!dado) avisar("reprocessamento.json fora do contrato público; estados mostrados como regras antigas")
+    } catch {
+      avisar("reprocessamento.json da pasta de dados não abriu; estados mostrados como regras antigas")
+    }
+    reprocessamento = { mtime, dado }
+    return dado
+  }
+
   /** Telemetria agregada publicada; cobertura de CSV e jobs não substituem uma observação válida. */
   function processamento(agora = Date.now()): ProcessamentoEstados {
     const publicado = lerManifesto()
@@ -497,6 +517,8 @@ export function abrirPasta(opcoes: OpcoesPasta) {
           fora_da_lista: [...lidos].filter((c) => !doIbge.has(c)).sort(),
         }
       })
+    const regras = lerReprocessamentoLocal()
+    for (const e of lista) if (regras?.estados[e.uf]) e.regras = regras.estados[e.uf]
     for (const e of lista)
       if (e.fora_da_lista.length)
         avisar(`${e.nome}: ${e.fora_da_lista.length} código(s) de município fora da lista do IBGE (${e.fora_da_lista.slice(0, 5).join(", ")})`)
@@ -504,6 +526,7 @@ export function abrirPasta(opcoes: OpcoesPasta) {
       pasta: modo === "amostra" ? "amostra" : publicado ? "publicada" : "RAIZ_DADOS",
       lista_ibge: LISTA_IBGE,
       ...(publicado?.gerado_em ? { gerado_em: publicado.gerado_em } : {}),
+      regras_vigentes: String(REGRAS_VIGENTES.geracao),
       estados: lista,
     }
   }

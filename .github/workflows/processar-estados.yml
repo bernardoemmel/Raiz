@@ -103,6 +103,12 @@ jobs:
           RAIZ_CONTINUACAO: ${{ inputs.continuacao }}
           RAIZ_SO_FILA: ${{ github.event_name == 'schedule' && github.event.schedule == '17 * * * *' && '1' || '0' }}
         run: uv run python motor/rodar_estado.py --planejar
+      - name: Situação do reprocessamento estado por estado (só leitura)
+        continue-on-error: true
+        timeout-minutes: 10
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: uv run python -m raiz.executor.reprocessamento
 
   projecao-aberta:
     # Refaz a projeção do Release aberto de um estado em que ela ficou para trás do arquivo privado (MG ficou com 3
@@ -201,6 +207,8 @@ jobs:
       RAIZ_RASTER_CACHE_GB: "5"
       RAIZ_CONTINUACAO: ${{ matrix.continuacao }}
       RAIZ_REFAZER: ${{ matrix.refazer }}
+      # pedido de reprocessamento com as regras novas (docs/reprocessamento-progressivo.md): a continuação também é
+      RAIZ_REPROCESSAR: ${{ matrix.reprocessar && '1' || '' }}
       CACHE_UF: |
         motor/cache/car_nacional
         motor/cache/tb

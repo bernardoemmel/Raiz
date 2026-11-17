@@ -1,3 +1,4 @@
+import type { RegrasEstado } from "./reprocessamento"
 /**
  * O que o front usa, já lido pelo nome das colunas do motor (docs/colunas.md). Áreas em hectares, carbono em tCO2
  * por ano. Nada aqui tem nome de pessoa, CPF ou CNPJ.
@@ -171,6 +172,8 @@ export interface EstadoDados {
   tabelas?: Record<string, number>
   versao?: string
   atualizado_em?: string
+  /** reprocessamento com as regras novas (reprocessamento.json do Release aberto), quando publicado */
+  regras?: RegrasEstado
 }
 
 export interface Estados {
@@ -186,4 +189,6 @@ export interface Estados {
   lista_ibge: string
   /** os 27 estados, em ordem de nome */
   estados: EstadoDados[]
+  /** a geração de regras que o código atual aplica (raiz/executor/regras_vigentes.json) */
+  regras_vigentes?: string
 }
