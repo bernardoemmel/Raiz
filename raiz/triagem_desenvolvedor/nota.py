@@ -91,9 +91,16 @@ def valores(linha: dict) -> dict:
     }
 
 
-def avaliar(linha: dict, r: dict | None = None) -> dict:
-    """Uma linha do ranking (sem a posição): nota, faixa, os números e o motivo."""
+def avaliar(linha: dict, r: dict | None = None, *, modo_gleba: str | None = None) -> dict:
+    """Uma linha do ranking (sem a posição): nota, faixa, os números e o motivo.
+
+    modo_gleba: "trava" ou "ressalva" para gleba federal não destinada acima de 10% do CAR (padrão da regra)."""
+    from raiz import terra as T
+
     r = r or regra()
+    modo_gleba = modo_gleba or (r.get("gleba_federal") or {}).get("modo", "trava")
+    if modo_gleba not in ("trava", "ressalva"):
+        raise ValueError("modo da gleba federal: trava ou ressalva")
     v = valores(linha)
     P, F = r["pesos"], r["faixas"]
     partes: dict[str, tuple[float, str]] = {}
@@ -122,6 +129,13 @@ def avaliar(linha: dict, r: dict | None = None) -> dict:
     if v["status_sobreposicao"] == "ja_comprometida":
         ref = f" ({v['projeto_id']})" if v["projeto_id"] else ""
         trava.append(f"já está em projeto ou concessão{ref}")
+    gf = T.gleba_federal(linha)
+    if gf["gleba_federal"]:
+        texto_g = (
+            f"{num(100 * gf['gleba_federal_fracao'], 0)}% do CAR ({num(gf['gleba_federal_ha'], 1)} ha) em gleba "
+            "pública federal não destinada"
+        )
+        (trava if modo_gleba == "trava" else ressalvas).append(texto_g)
     texto_res = r["ressalvas"]["status_sobreposicao"].get(v["status_sobreposicao"])
     if texto_res:
         ressalvas.append(texto_res)
@@ -144,6 +158,8 @@ def avaliar(linha: dict, r: dict | None = None) -> dict:
         pedacos.append("sem " + ", ".join({"custo": "custo", "tir": "TIR", "credito": "crédito"}[n] for n in faltam))
     if v["status_sobreposicao"] == "nao_verificado":
         pedacos.append("sobreposição com projetos não verificada")
+    if gf["gleba_federal"] is None:
+        pedacos.append("gleba federal não medida")
     motivo = "; ".join(pedacos)
     if trava:
         motivo += ". Trava: " + "; ".join(trava)
@@ -161,4 +177,5 @@ def avaliar(linha: dict, r: dict | None = None) -> dict:
         "desmatamento_recente_ha": _num(linha.get("desm_pos2020_ha")),
         "alerta_recente_ha": _num(linha.get("alerta_ultimo_ano")),
         "motivo": motivo,
+        "gleba_federal_pct": None if gf["gleba_federal_fracao"] is None else round(100 * gf["gleba_federal_fracao"], 1),
     }
