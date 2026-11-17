@@ -1597,6 +1597,28 @@ def comprometida_recalcular(
     typer.echo(f"versão {v}: {feitos} municípios refeitos, {em_dia} já em dia")
 
 
+@comprometida_cli.command("conferir-pacote")
+def comprometida_conferir_pacote(
+    lista: Annotated[
+        str, typer.Argument(help="para_redd_car_sobreposicoes.csv (Zenodo 23929936, CAR x REDD+ do Pará)")
+    ],
+    saida: Annotated[str | None, typer.Option(help="pasta saida/ do motor, com <UF>/comprometida_<mun>.csv")] = None,
+    lacunas: Annotated[str | None, typer.Option(help="CSV onde gravar os CAR da lista que a camada não marcou")] = None,
+) -> None:
+    """Confere a camada contra a lista pública CAR x REDD+ do Pará: onde a camada diz livre e a lista diz projeto."""
+    from pathlib import Path
+
+    from raiz.comprometida import pacote as PK
+    from raiz.funil.rodar import dir_trabalho
+
+    resumo, lac = PK.conferir(lista, Path(saida) if saida else dir_trabalho() / "saida")
+    for k, v in resumo.items():
+        typer.echo(f"{k:22} {v}")
+    if lacunas:
+        lac.to_csv(lacunas, index=False)
+        typer.echo(f"lacunas em {lacunas}")
+
+
 @comprometida_cli.command("resumo")
 def comprometida_resumo(arquivo: Annotated[str, typer.Argument(help="comprometida_<mun>.csv")]) -> None:
     """Contagem de imóveis por status de sobreposição (o agregado, que é o que pode ser público)."""

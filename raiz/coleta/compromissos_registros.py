@@ -239,6 +239,37 @@ def ler_kml(dados: bytes):
     return so_area(union_all(polys))
 
 
+def ler_kmz(dados: bytes):
+    """KMZ é um zip com um KML dentro. Só o primeiro .kml, com limite do tamanho expandido; nada é extraído em disco."""
+    try:
+        with zipfile.ZipFile(io.BytesIO(dados)) as z:
+            nomes = [i for i in z.infolist() if i.filename.lower().endswith(".kml") and not i.is_dir()]
+            if not nomes or nomes[0].file_size > LIMITE:
+                raise ValueError("KMZ sem KML utilizável")
+            return ler_kml(z.read(nomes[0]))
+    except zipfile.BadZipFile:
+        raise ValueError("KMZ ilegível") from None
+
+
+def documentos_geograficos(payload: dict) -> tuple[list[dict], bool]:
+    """(documentos a baixar, são oficiais?). O tipo "Project Boundary (KML File)" é o limite oficial. Projeto sem
+    ele, mas com .kml ou .kmz publicado como "Other", entra só como indício (19 projetos em 16/11/2026, 10 sem
+    outra fonte)."""
+    docs = [
+        d
+        for d in payload.get("documentList", [])
+        if isinstance(d, dict)
+        and isinstance(d.get("id"), int)
+        and str(d.get("document_name", "")).lower().endswith((".kml", ".kmz"))
+    ]
+    oficiais = [
+        d
+        for d in docs
+        if d.get("type_name") == "Project Boundary (KML File)" and str(d["document_name"]).lower().endswith(".kml")
+    ]
+    return (oficiais, True) if oficiais else (docs, False)
+
+
 VERRA_API = "https://prod-us.api.platts.com/ci-raas-prod/br-reg/rest"
 VERRA_PADRAO = "150000000000001"  # VCS: getStandardList público, conferido 2026-11-12.
 
@@ -311,14 +342,7 @@ def coletar_verra(codigo: str, *, cliente=None, observado_em: str | None = None)
     if not brasil:
         raise ValueError("Projeto não confirmado no Brasil pela fonte oficial")
     uf = _uf(str(brasil[0].get("province", "")).removeprefix("State of "))
-    documentos = [
-        d
-        for d in payload.get("documentList", [])
-        if isinstance(d, dict)
-        and d.get("type_name") == "Project Boundary (KML File)"
-        and str(d.get("document_name", "")).lower().endswith(".kml")
-        and isinstance(d.get("id"), int)
-    ]
+    documentos, oficial = documentos_geograficos(payload)
     geoms, falhas = [], 0
     # Um projeto não deve poder produzir download ilimitado pela lista documental.
     if len(documentos) > 20:
@@ -339,7 +363,9 @@ def coletar_verra(codigo: str, *, cliente=None, observado_em: str | None = None)
                     if total > LIMITE:
                         raise ValueError("Documento territorial excede limite")
                     partes.append(chunk)
-            geoms.append(ler_kml(b"".join(partes)))
+            dados = b"".join(partes)
+            kmz = str(d.get("document_name", "")).lower().endswith(".kmz")
+            geoms.append(ler_kmz(dados) if kmz else ler_kml(dados))
         except httpx.HTTPError:
             raise FonteIndisponivel("Documento geográfico público indisponível") from None
         except ValueError:
@@ -353,7 +379,7 @@ def coletar_verra(codigo: str, *, cliente=None, observado_em: str | None = None)
             "tipo": "projeto_carbono",
             "situacao": status_registro(payload.get("state_name") or payload.get("status")),
             "certeza": "poligono_oficial"
-            if len(geoms) == 1 and not falhas
+            if oficial and len(geoms) == 1 and not falhas
             else "poligono_secundario"
             if geoms
             else "catalogo_sem_geometria",
