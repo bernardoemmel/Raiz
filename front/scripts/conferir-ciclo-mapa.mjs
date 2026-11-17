@@ -69,7 +69,23 @@ export async function conferirCicloMapa(navegador, base) {
   assert.deepEqual(erros, [])
   await contexto.close()
 
-  const fallback = await navegador.newContext({ viewport: { width: 360, height: 800 } })
+  // No celular, a abertura não baixa o agregado H3 nem o worker dele: os hexágonos só aparecem com um pedido.
+  const celular = await navegador.newContext({ viewport: { width: 360, height: 800 } })
+  const paginaCelular = await celular.newPage()
+  const pedidosCelular = []
+  paginaCelular.on("request", pedido => pedidosCelular.push(pedido.url()))
+  paginaCelular.on("pageerror", erro => erros.push(erro.message))
+  await paginaCelular.goto(base + "#/")
+  await paginaCelular.waitForFunction(() => document.querySelector(".mapa-brasil .mapa")?.__mapa?.loaded())
+  await paginaCelular.waitForFunction(() => document.querySelector(".mapa-brasil .mapa").__mapa.queryRenderedFeatures({ layers: ["oportunidades-circulo"] }).length > 0)
+  await paginaCelular.waitForTimeout(3000)
+  assert(!pedidosCelular.some(url => /agregados_brasil|hexagonos\.worker/.test(url)), "No celular, a entrada não baixa o agregado H3 nem o worker dos hexágonos.")
+  const dimensoesCelular = await paginaCelular.locator(".mapa-brasil").boundingBox()
+  assert(dimensoesCelular && dimensoesCelular.width >= 359 && dimensoesCelular.height >= 739, "O mapa deve ocupar toda a tela abaixo da barra superior.")
+  await celular.close()
+
+  // No computador, o agregado H3 entra depois da abertura, com o navegador ocioso.
+  const fallback = await navegador.newContext({ viewport: { width: 1024, height: 800 } })
   await fallback.addInitScript(() => Object.defineProperty(globalThis, "scheduler", { configurable: true, value: undefined }))
   const direta = await fallback.newPage()
   direta.on("pageerror", erro => erros.push(erro.message))
@@ -86,7 +102,7 @@ export async function conferirCicloMapa(navegador, base) {
     assert.equal(await direta.locator("canvas.maplibregl-canvas").count(), 1)
     assert.equal(await direta.locator(".painel-lateral").count(), 0, "O mapa V2 não pode recriar a coluna lateral.")
     const dimensoes = await direta.locator(".mapa-brasil").boundingBox()
-    assert(dimensoes && dimensoes.width >= 359 && dimensoes.height >= 739, "O mapa deve ocupar toda a tela abaixo da barra superior.")
+    assert(dimensoes && dimensoes.width >= 1023 && dimensoes.height >= 739, "O mapa deve ocupar toda a tela abaixo da barra superior.")
   }
   // Os primeiros hexágonos podem aparecer antes de outras fontes e fontes tipográficas terminarem.
   // Observa a estabilidade somente depois da rede quieta e de um frame completo do mapa.

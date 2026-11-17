@@ -173,6 +173,9 @@ describe("frase da tela de entrada", () => {
     // e bate com o resumo do motor: aptas = aptas_carbono; prontas = aptas_com_matricula
     expect(n.aptas).toBe(resumo.reduce((s, m) => s + m.aptas_carbono, 0))
     expect(n.prontas).toBe(resumo.reduce((s, m) => s + m.aptas_com_matricula, 0))
+    // a Situação do filtro troca o número grande do cartão por estas somas
+    expect(n.haMatricula).toBe(resumo.reduce((s, m) => s + m.ha_carbono_matricula, 0))
+    expect(n.agrupar).toBe(resumo.reduce((s, m) => s + m.para_agrupar, 0))
     expect(frase).toContain(`${fmtInt(n.municipios)} municípios (Pará)`)
     expect(frase).not.toMatch(/título em dia/)
   })
