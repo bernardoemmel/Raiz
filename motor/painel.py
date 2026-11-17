@@ -132,7 +132,12 @@ def atualizar_no_github(manifesto: dict, caminho: str = "motor/README.md", branc
     """Regrava o painel no README do branch principal pela API (sem clonar nem dar push). Se alguém mexeu no arquivo no
     meio, a API recusa (o sha não confere) e ele lê de novo."""
     repo = S.REPO
-    branch = branch or os.environ.get("RAIZ_BRANCH_PAINEL") or _gh("api", f"repos/{repo}", "--jq", ".default_branch").stdout.strip() or "main"
+    # A main é protegida (só entra por PR com CI verde; ver CLAUDE.md). Por isso o painel não grava mais nela:
+    # só grava se RAIZ_BRANCH_PAINEL apontar para outro branch. A situação dos estados segue no estados.json do Release.
+    branch = branch or os.environ.get("RAIZ_BRANCH_PAINEL") or ""
+    if not branch or branch == "main":
+        print("painel: a main é protegida; o README do motor não é regravado pelo Actions", flush=True)
+        return False
     for _ in range(4):
         r = _gh("api", f"repos/{repo}/contents/{caminho}?ref={branch}")
         if r.returncode:
