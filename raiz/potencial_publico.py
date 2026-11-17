@@ -19,6 +19,7 @@ import re
 import tarfile
 import time
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -159,6 +160,9 @@ def _incorporar(destino: Entradas, origem: Entradas) -> None:
         destino.geometrias[car] = geom
 
 
+LEITURAS_PARALELAS = 4
+
+
 def ler_privado(arm) -> Entradas:
     """Congela o par de assets por UF; troca concorrente refaz somente aquela UF.
 
@@ -170,15 +174,15 @@ def ler_privado(arm) -> Entradas:
         return {a["name"]: a for a in arm._assets(arm._exigir_privado())}
 
     ufs = sorted(m[1] for nome in listar() if (m := re.fullmatch(r"raiz_([A-Z]{2})\.tar\.gz", nome)))
-    e = Entradas()
-    for uf in ufs:
+
+    def ler_uf(uf: str) -> Entradas | None:
         nomes = [f"raiz_{uf}.tar.gz", f"raiz_geo_{uf}.tar.gz"]
         tentativas = 12
         for tentativa in range(tentativas):
             try:
                 por_nome = listar()
                 if any(n not in por_nome for n in nomes):
-                    break  # UF sem desenho: cobertura indisponível, sem ponto municipal inventado.
+                    return None  # UF sem desenho: cobertura indisponível, sem ponto municipal inventado.
                 parte = Entradas()
                 for i, nome in enumerate(nomes):
                     a = por_nome[nome]
@@ -201,9 +205,8 @@ def ler_privado(arm) -> Entradas:
                     for n in nomes
                 ):
                     raise RuntimeError("Publicação concorrente da UF durante a leitura do potencial.")
-                _incorporar(e, parte)
                 print(f"Potencial: fonte privada de {uf} lida; nenhum dado individual será publicado.", flush=True)
-                break
+                return parte
             except RuntimeError:
                 if tentativa == tentativas - 1:
                     # Com dezenas de jobs publicando, um estado grande pode mudar a cada leitura. Ele fica de fora
@@ -212,12 +215,22 @@ def ler_privado(arm) -> Entradas:
                         f"Potencial: {uf} mudou durante todas as leituras; fica de fora desta rodada do site.",
                         flush=True,
                     )
-                    break
+                    return None
                 print(
                     f"Potencial: repetindo leitura de {uf} após atualização concorrente ou falha transitória.",
                     flush=True,
                 )
                 time.sleep(min(5 * 2**tentativa, 60))
+        return None
+
+    # Estados lidos em paralelo: a espera de um estado que está sendo republicado não segura os outros, e a janela
+    # de leitura de cada par fica menor. A incorporação continua em ordem de UF, sempre igual.
+    e = Entradas()
+    with ThreadPoolExecutor(max_workers=LEITURAS_PARALELAS) as pool:
+        partes = list(pool.map(ler_uf, ufs))
+    for parte in partes:
+        if parte is not None:
+            _incorporar(e, parte)
     return e
 
 

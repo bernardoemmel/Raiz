@@ -8,11 +8,10 @@ from pathlib import Path
 import requests
 
 from raiz.calendario.modelos import UFS
+from raiz.qualidade_calendario import COBERTURA_ID, COBERTURA_NOME  # noqa: F401 (reexportados)
 
 MANIFESTO_PUBLICO = "https://github.com/bernardoemmel/Raiz/releases/download/dados/estados.json"
 MAX_MANIFESTO = 2 * 1024 * 1024
-COBERTURA_ID = "cobertura_diarios"
-COBERTURA_NOME = "Cobertura dos diários estaduais"
 
 
 def carregar_manifesto(caminho: Path | None = None) -> dict:
