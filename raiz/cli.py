@@ -1517,6 +1517,69 @@ def triagem_enviar_entrada(
     typer.echo(f"enviado como {nome}")
 
 
+dossie_cli = typer.Typer(
+    help="Dossiê executivo do lote por município (o que o Bot Agro montava na mão): Markdown, PDF e Word.",
+    no_args_is_help=True,
+)
+app.add_typer(dossie_cli, name="dossie")
+
+
+@dossie_cli.command("lote")
+def dossie_lote_cmd(
+    municipio: Annotated[int, typer.Option(help="código IBGE do município (ex.: 1505502, Paragominas)")],
+    pasta: Annotated[
+        str | None, typer.Option(help="saida/ do motor (com <UF>/); sem ela, baixa o estado do arquivo privado")
+    ] = None,
+    modo: Annotated[str, typer.Option(help="normal (risco vira ressalva) ou estrito (risco tira do lote)")] = "normal",
+    limites: Annotated[
+        str | None, typer.Option(help="comprometida_limites.parquet (padrão: Release insumos em cache)")
+    ] = None,
+    saida: Annotated[str, typer.Option(help="pasta do dossiê")] = "dados/documentos/dossie",
+    nome: Annotated[str | None, typer.Option(help="nome dos arquivos (minúsculas, números e hífen)")] = None,
+    enviar: Annotated[bool, typer.Option(help="enviar o dossiê ao arquivo privado")] = False,
+) -> None:
+    """Lotes de restauração do município com ressalvas, prontidão, checklist e anexo dos CARs. Não refaz o funil."""
+    import re
+    import tempfile
+    from pathlib import Path
+
+    from raiz import dossie_lote as DL
+
+    nome = nome or f"dossie-{municipio}-{modo}"
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,60}", nome):
+        raise typer.BadParameter("nome: minúsculas, números e hífen")
+    lim = None
+    if limites:
+        import geopandas as gpd
+
+        lim = gpd.read_parquet(limites)
+    with tempfile.TemporaryDirectory() as tmp:
+        if pasta is None:
+            from raiz.executor.transferencia_privada import baixar_arquivo
+            from raiz.restauracao_nacional_fontes import extrair_uf
+
+            _, uf = DL.nome_municipio(municipio)
+            for pac in (f"raiz_{uf}.tar.gz", f"raiz_geo_{uf}.tar.gz"):  # só o município sai do pacote
+                if baixar_arquivo(pac, Path(tmp) / pac, opcional=pac.startswith("raiz_geo_")):
+                    extrair_uf(Path(tmp) / pac, uf, Path(tmp) / "estados", geo=pac.startswith("raiz_geo_"),
+                               municipios={municipio})  # fmt: skip
+                    (Path(tmp) / pac).unlink()
+            pasta = str(Path(tmp) / "estados" / uf)
+        d = DL.montar(pasta, municipio, modo=modo, limites=lim)
+        arquivos = DL.gravar(d, saida, nome)
+        if enviar:
+            from raiz.executor.transferencia_privada import enviar_arquivo
+
+            for tipo, f in arquivos.items():
+                enviar_arquivo(f"{nome}.{tipo}", f)
+    typer.echo(
+        f"{d['municipio']}: {len(d['lotes'])} lotes, {sum(x['n'] for x in d['lotes'])} imóveis, "
+        f"{sum(x['ha_restauravel'] for x in d['lotes']):.0f} ha restauráveis; {d['imoveis_aptos']} aptos de "
+        f"{d['imoveis_lidos']}"
+    )
+    typer.echo(f"dossiê em {saida}/{nome}.md, .pdf, .docx e .json" + (" e no arquivo privado" if enviar else ""))
+
+
 comprometida_cli = typer.Typer(
     help="Terra já comprometida no processamento: coleta dos limites públicos e status por CAR.", no_args_is_help=True
 )

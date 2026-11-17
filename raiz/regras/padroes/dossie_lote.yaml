@@ -1,0 +1,47 @@
+# Dossiê executivo do lote por município (raiz/dossie_lote.py): os filtros e limiares que o Bot Agro aplicava na mão
+# em Paragominas (17/11/2026), agora em código. Não muda a ciência do funil: só filtra e formata o que já foi calculado.
+# Mudou este arquivo, muda a versão gravada no dossiê.
+versao: dossie-lote-2026a
+
+# Área abaixo disto é ruído de borda entre polígonos (100 m²), não sobreposição real.
+tolerancia_ha: 0.01
+
+# Sempre tiram o imóvel do lote, em qualquer modo: coluna em ha acima da tolerância. Coluna que não existe nos dados
+# não filtra nada e aparece no dossiê como "não disponível nos dados: conferir".
+exclusoes:
+  desm_pos2016_ha: desmatamento PRODES desde 2016
+  alerta_ha: alerta MapBiomas
+  embargo_ha: embargo Ibama
+  embargo_icmbio_ha: embargo ICMBio
+  ldi_semas_ha: LDI/SEMAS (lista de desmatamento ilegal do Pará)
+  ti_ha: terra indígena
+  ti_funai_ha: terra indígena (FUNAI)
+  uc_protecao_integral_ha: unidade de conservação de proteção integral
+  uc_uso_sustentavel_ha: unidade de conservação de uso sustentável
+  quilombo_ha: quilombo
+  assentamento_ha: assentamento
+
+# Caminhos da terra que não originam com particular: sempre fora.
+caminhos_fora: [publica_sem_destinacao, terra_indigena_ou_tradicional, assentamento]
+
+# Projetos de carbono (comprometida_limites.parquet do Release insumos)
+carbono:
+  divisa_m: 100           # limite de projeto a menos de 100 m do CAR, sem cruzar: ressalva leve
+  sobreposicao_min_ha: 1  # cruzamento abaixo de 1 ha é desencontro de borda entre bases: conta como divisa (leve)
+  regional_ha: 500000     # KML acima disto é área regional de agrupado/programa: risco a conferir, nunca exclusão
+  # ARR agrupados com KML regional (a área do KML é a região inteira, não a fazenda): risco a conferir
+  agrupados_regionais: [VCS4137, VCS5184, VCS3380, VCS3713, VCS4849]
+  situacoes_inativas: [retirado, encerrado, inativo, cancelado, rejeitado]
+
+# Lotes por vizinhança (centróide do CAR). Nenhum imóvel sai por tamanho: pequenas entram no lote mais próximo.
+lotes:
+  raio_km: 12            # imóvel entra no lote se o centróide estiver a até 12 km do primeiro do lote
+  no_dossie: 4           # lotes detalhados; o resto vira "potencial adicional no município"
+
+# O que só gente resolve (não sai de dado público)
+validacao_humana:
+  - "Proprietários: contato, interesse e aceite do dono (ou do representante) de cada CAR."
+  - "Cartório: certidão de inteiro teor com até 30 dias, cadeia dominial e consulta à CNIB."
+  - "Outros desenvolvedores (Carbonext e demais): confirmar que não há contrato, opção ou pré-venda sobre a área."
+  - "Certidões: negativas ambientais (Ibama, SEMAS), CAR ativo e sem pendência, ITR e CCIR."
+  - "Campo: visita ou verificação remota com o comprador ou parceiro credenciado (limites, uso atual, regeneração)."
