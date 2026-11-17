@@ -15,7 +15,9 @@ Regras:
   "livre" só quando alguma fonte cobriu a área (cobertura bbox do Brasil, estado consultado ou parcial) e nada cruza.
   Sem fonte, ou com a coleta indisponível, é nao_verificado: ausência de dado nunca vira terra livre.
   ja_comprometida: limite oficial e ativo cobre pelo menos 1 ha ou 5% do imóvel (imóvel pequeno conta pela fração).
-  risco_sobreposicao: só indício (limite secundário) ou limite oficial menor que isso (borda, erro de contorno).
+  risco_sobreposicao: só indício (limite secundário: base científica, InfoAmazonia, REDD+ do Pará) ou limite oficial
+    menor que isso (borda, erro de contorno).
+  Limite amplo (limite_amplo, mais de 1 milhão de ha: área geográfica de projeto agrupado) não entra no cruzamento.
 Confirma sobreposição geométrica, não titularidade nem exclusividade do carbono (docs/terra-comprometida.md).
 Nunca nome, CPF ou proponente: só identificador público do projeto.
 """
@@ -34,7 +36,7 @@ import pandas as pd
 
 from raiz import terra_comprometida as tc
 
-VERSAO = "comprometida-2026a"
+VERSAO = "comprometida-2026b"
 LIMIAR_HA = 1.0
 LIMIAR_FRACAO = 0.05
 COLUNAS = ["cod_imovel", "status_sobreposicao", "sobreposicao_ha", "sobreposicao_indicio_ha", "projeto_id", "fonte",
@@ -58,6 +60,8 @@ def carregar_limites(pasta: Path | None = None):
         return None, []
     g = gpd.read_parquet(f)
     g = g.set_crs(4326) if g.crs is None else g.to_crs(4326)
+    if "limite_amplo" in g.columns:  # coleta antiga não tem a coluna
+        g = g[~g.limite_amplo.fillna(False).astype(bool)].reset_index(drop=True)
     cob = json.loads(m.read_text(encoding="utf-8")).get("cobertura", [])
     return g, cob
 
@@ -104,13 +108,16 @@ def avaliar_imovel(geom, cod: str, ha: float | None, candidatos: list[dict], cob
     uf = cod.split("-")[0]
     dto = tc.cruzar(geom, uf, candidatos, coberturas, em=hoje, _normalizados=True)
     status, c, i = classificar(dto, ha)
-    top = sorted((e for e in dto["evidencias"] if e["area"]["valor"]), key=lambda e: -e["area"]["valor"])[:3]
+    ordem = sorted((e for e in dto["evidencias"] if e["area"]["valor"]), key=lambda e: -e["area"]["valor"])
+    # O mesmo projeto pode vir de várias fontes (Verra, InfoAmazonia, REDD+ do Pará): conta uma vez no projeto_id.
+    ids = list(dict.fromkeys(e["objeto_id"] for e in ordem))[:3]
+    top = [e for e in ordem if e["objeto_id"] in ids]
     return {
         "cod_imovel": cod,
         "status_sobreposicao": status,
         "sobreposicao_ha": c,
         "sobreposicao_indicio_ha": i,
-        "projeto_id": "|".join(e["objeto_id"] for e in top) or None,
+        "projeto_id": "|".join(ids) or None,
         "fonte": "|".join(dict.fromkeys(e["fonte_id"] for e in top)) or None,
         "data_consulta": max((x["consultado_em"] for x in dto["cobertura"] if x["consultado_em"]), default=None),
         "comprometida_cobertura": _cobertura_do_imovel(dto),

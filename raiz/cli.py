@@ -1522,12 +1522,16 @@ app.add_typer(comprometida_cli, name="comprometida")
 @comprometida_cli.command("coletar")
 def comprometida_coletar(
     saida: Annotated[str, typer.Option(help="pasta onde gravar os arquivos que vão ao Release insumos")],
-    fontes: Annotated[str, typer.Option(help="verra, sfb_concessoes e limites_pesquisa, separadas por vírgula")] = (
-        "verra,sfb_concessoes,limites_pesquisa"
-    ),
+    fontes: Annotated[
+        str,
+        typer.Option(
+            help="verra, sfb_concessoes, limites_pesquisa, infoamazonia_carbono e para_redd_zenodo, por vírgula"
+        ),
+    ] = "verra,sfb_concessoes,limites_pesquisa,infoamazonia_carbono,para_redd_zenodo",
     limite_verra: Annotated[int | None, typer.Option(help="só os N primeiros projetos Verra (teste)")] = None,
 ) -> None:
-    """Coleta os limites públicos (Verra, SFB, Zenodo) e grava limites, cobertura e o pacote do motor."""
+    """Coleta os limites públicos (Verra, SFB, Zenodo, InfoAmazonia, REDD+ do Pará) e grava limites, cobertura e o
+    pacote do motor."""
     from raiz.comprometida import coleta as CL
 
     r = CL.coletar(tuple(x.strip() for x in fontes.split(",") if x.strip()), limite_verra=limite_verra)

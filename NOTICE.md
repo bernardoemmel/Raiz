@@ -31,7 +31,15 @@ publicados. Exceção, por decisão do fundador em 16/11/2026: o workflow
 geográficos (polígonos, sem nome, proponente ou documento) dos projetos Verra
 brasileiros e das concessões do SFB, e os da base científica do Zenodo (CC BY 4.0,
 com atribuição no manifesto), para o motor e a tarefa `comprometida` lerem. O
-status por imóvel não é público. Reverter: apagar os arquivos do Release. Consulte [fontes e limites](docs/terra-comprometida.md)
+status por imóvel não é público. Reverter: apagar os arquivos do Release.
+
+Desde 17/11/2026 a mesma coleta lê, só como indício, dois conjuntos secundários de limites. (1) InfoAmazonia,
+reportagem "Carbono sujo" (2025), repositório público InfoAmazonia/unid_geojornalismo, commit 350f832, sem licença
+declarada: lemos só identificador, situação, UF e geometria (CNPJ e empresa nunca), com crédito à InfoAmazonia; os
+polígonos derivados vêm dos KML dos próprios registros e seguem a mesma exceção dos limites Verra acima. (2) Paim,
+West & Silva, "Where Carbon Credits Overlap with Rights: REDD+ ... in Pará", Zenodo 23929936, **CC BY 4.0**: só as
+linhas "KML Projeto" (limites dos projetos), com atribuição no manifesto. Não copiamos código de nenhuma das duas.
+Consulte [fontes e limites](docs/terra-comprometida.md)
 e o catálogo versionado `raiz/terra_comprometida_fontes.json`.
 
 Cache calibrado da matrícula: MAPIE 1.6 (BSD-3-Clause, Copyright 2021 Vianney Taquet,

@@ -10,6 +10,7 @@ from __future__ import annotations
 import datetime as dt
 import io
 import re
+import time
 import unicodedata
 import xml.etree.ElementTree as ET
 import zipfile
@@ -21,6 +22,12 @@ from shapely.geometry import Polygon
 from raiz.terra_comprometida import catalogo_fontes, normalizar
 
 NS = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+
+
+class FonteIndisponivel(ValueError):
+    """Falha de rede ou de limite do registro (o problema é a fonte, não o projeto). Só ela interrompe a fila."""
+
+
 LIMITE = 40 * 1024 * 1024
 _UFS = dict(
     zip(
@@ -37,7 +44,13 @@ _UFS = dict(
 
 def status_registro(s: str) -> str:
     s = str(s).strip().lower()
-    if s in ("registered", "gold standard certified project", "verification approval requested", "late to verify"):
+    if s in (
+        "registered",
+        "gold standard certified project",
+        "verification approval requested",
+        "late to verify",
+        "certified",
+    ):
         return "ativo"
     if any(t in s for t in ("withdrawn", "canceled", "cancelled", "rejected", "denied")):
         return "retirado"
@@ -172,11 +185,32 @@ def coletar_berkeley(*, cliente=None, observado_em: str | None = None) -> dict:
     return ler_berkeley(_download(cliente, meta["arquivo"]), observado_em=hoje)
 
 
+_PREFIXO_TAG = re.compile(rb"(</?)[A-Za-z_][\w.-]*:")
+_PREFIXO_ATRIBUTO = re.compile(rb"(\s)(?!xmlns\b)[A-Za-z_][\w.-]*:([\w.-]+\s*=)")
+
+
+def _xml_tolerante(dados: bytes):
+    """KML de registro nem sempre é XML válido: há arquivos com prefixo sem declaração (gx:, kml:), o erro "unbound
+    prefix" que derrubou a coleta de 16/11. Na segunda tentativa tira os prefixos de tags e atributos e relê; os
+    elementos de KML são procurados com {*}, então o polígono continua achado. Sem conserto, vira ValueError (o
+    projeto fica sem geometria, a fila segue)."""
+    try:
+        return ET.fromstring(dados)
+    except ET.ParseError:
+        pass
+    limpo = _PREFIXO_ATRIBUTO.sub(rb"\1\2", _PREFIXO_TAG.sub(rb"\1", dados))
+    limpo = re.sub(rb"\sxmlns:[A-Za-z_][\w.-]*\s*=\s*(\"[^\"]*\"|'[^']*')", b"", limpo)
+    try:
+        return ET.fromstring(limpo)
+    except ET.ParseError:
+        raise ValueError("Documento KML ilegível") from None
+
+
 def ler_kml(dados: bytes):
     """Somente polígonos explícitos do documento, com furos. Ignora descrições e nomes."""
     if len(dados) > LIMITE or b"<!DOCTYPE" in dados.upper() or b"<!ENTITY" in dados.upper():
         raise ValueError("Documento KML fora do contrato seguro")
-    root = ET.fromstring(dados)
+    root = _xml_tolerante(dados)
 
     def coords(el):
         if el is None:
@@ -198,15 +232,35 @@ VERRA_API = "https://prod-us.api.platts.com/ci-raas-prod/br-reg/rest"
 VERRA_PADRAO = "150000000000001"  # VCS: getStandardList público, conferido 2026-11-12.
 
 
-def _json_publico(c, url, *, metodo="GET", corpo=None, headers=None):
-    try:
-        r = c.request(metodo, url, json=corpo, headers=headers)
-        r.raise_for_status()
-        if len(r.content) > LIMITE:
-            raise ValueError("Resposta do registro excede o limite")
-        return r.json()
-    except (httpx.HTTPError, ValueError):
-        raise ValueError("Registro público indisponível ou formato alterado") from None
+PAUSA_S = 0.5  # entre chamadas ao registro: educado com a fonte, ~200 projetos em poucos minutos
+
+
+def _json_publico(c, url, *, metodo="GET", corpo=None, headers=None, tentativas=3):
+    """429 e 5xx tentam de novo com espera crescente; persistindo, FonteIndisponivel."""
+    for i in range(tentativas):
+        try:
+            r = c.request(metodo, url, json=corpo, headers=headers)
+            if r.status_code == 429 or r.status_code >= 500:
+                raise httpx.HTTPStatusError("transitório", request=r.request, response=r)
+            r.raise_for_status()
+            if len(r.content) > LIMITE:
+                raise ValueError("Resposta do registro excede o limite")
+            return r.json()
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code in (429,) or e.response.status_code >= 500:
+                if i + 1 < tentativas:
+                    time.sleep(PAUSA_S * 4 ** (i + 1))
+                    continue
+                raise FonteIndisponivel("Registro público indisponível") from None
+            raise ValueError("Projeto não encontrado no registro público") from None
+        except httpx.HTTPError:
+            if i + 1 < tentativas:
+                time.sleep(PAUSA_S * 4 ** (i + 1))
+                continue
+            raise FonteIndisponivel("Registro público indisponível") from None
+        except ValueError:
+            raise ValueError("Registro público com formato alterado") from None
+    raise FonteIndisponivel("Registro público indisponível")
 
 
 def coletar_verra(codigo: str, *, cliente=None, observado_em: str | None = None) -> dict:
@@ -254,11 +308,12 @@ def coletar_verra(codigo: str, *, cliente=None, observado_em: str | None = None)
         and str(d.get("document_name", "")).lower().endswith(".kml")
         and isinstance(d.get("id"), int)
     ]
-    geoms = []
+    geoms, falhas = [], 0
     # Um projeto não deve poder produzir download ilimitado pela lista documental.
     if len(documentos) > 20:
         raise ValueError("Projeto requer revisão dos documentos geográficos")
     for d in documentos:
+        time.sleep(PAUSA_S)
         try:
             with cliente.stream(
                 "POST",
@@ -275,7 +330,10 @@ def coletar_verra(codigo: str, *, cliente=None, observado_em: str | None = None)
                     partes.append(chunk)
             geoms.append(ler_kml(b"".join(partes)))
         except httpx.HTTPError:
-            raise ValueError("Documento geográfico público indisponível") from None
+            raise FonteIndisponivel("Documento geográfico público indisponível") from None
+        except ValueError:
+            # Um KML ilegível ou só com ponto não derruba o projeto nem a fila; o projeto perde a certeza oficial.
+            falhas += 1
     registro = normalizar(
         {
             "fonte_id": "verra",
@@ -284,7 +342,7 @@ def coletar_verra(codigo: str, *, cliente=None, observado_em: str | None = None)
             "tipo": "projeto_carbono",
             "situacao": status_registro(payload.get("state_name") or payload.get("status")),
             "certeza": "poligono_oficial"
-            if len(geoms) == 1
+            if len(geoms) == 1 and not falhas
             else "poligono_secundario"
             if geoms
             else "catalogo_sem_geometria",
@@ -301,6 +359,9 @@ def coletar_verra(codigo: str, *, cliente=None, observado_em: str | None = None)
     return {"registros": [registro], "cobertura": coverage}
 
 
+VERRA_FALHAS_SEGUIDAS = 5
+
+
 def iterar_compromissos(*, fontes=None, bbox=None, projetos_verra=None, concluidos_verra=(), limite_verra=None):
     """Coleta incremental; o chamador confirma cada yield no banco antes de avançar.
 
@@ -313,12 +374,14 @@ def iterar_compromissos(*, fontes=None, bbox=None, projetos_verra=None, concluid
 
     fontes = fontes if fontes is not None else ["berkeley", "art_jurisdicional", "sfb_concessoes"]
     bbox = bbox if bbox is not None else (-74, -34, -34, 6)
-    validas = {"berkeley", "art_jurisdicional", "sfb_concessoes", "verra", "limites_pesquisa"}
+    validas = {"berkeley", "art_jurisdicional", "sfb_concessoes", "verra", "limites_pesquisa", "infoamazonia_carbono",
+               "para_redd_zenodo"}  # fmt: skip
     if not isinstance(fontes, (list, tuple)) or set(fontes) - validas:
         raise ValueError("Fonte de compromisso não reconhecida")
     if limite_verra is not None and (not isinstance(limite_verra, int) or limite_verra <= 0):
         raise ValueError("Limite Verra deve ser inteiro positivo")
     berkeley = None
+    seguidas = 0  # falhas seguidas da fonte (rede, 429): só elas param a fila Verra
     for fonte in dict.fromkeys(fontes):
         if fonte == "verra" and projetos_verra is None:
             # Falha no catálogo interrompe a descoberta; não vira uma lista vazia de projetos.
@@ -346,10 +409,20 @@ def iterar_compromissos(*, fontes=None, bbox=None, projetos_verra=None, concluid
                     from raiz.coleta.compromissos_pesquisa import coletar_limites_pesquisa
 
                     result = coletar_limites_pesquisa(bbox=bbox)
+                elif fonte == "infoamazonia_carbono":
+                    from raiz.coleta.compromissos_secundarios import coletar_infoamazonia
+
+                    result = coletar_infoamazonia()
+                elif fonte == "para_redd_zenodo":
+                    from raiz.coleta.compromissos_secundarios import coletar_para_redd
+
+                    result = coletar_para_redd()
                 else:
+                    time.sleep(PAUSA_S)
                     result = coletar_verra(oid)
+                seguidas = 0
                 yield result
-            except (ValueError, httpx.HTTPError):
+            except Exception as erro:  # noqa: BLE001 - qualquer falha de uma fonte/projeto vira cobertura indisponível
                 meta = catalogo_fontes()["fontes"][fonte]
                 yield {
                     "registros": [],
@@ -365,8 +438,12 @@ def iterar_compromissos(*, fontes=None, bbox=None, projetos_verra=None, concluid
                         "consultado_em": dt.date.today().isoformat(),
                     },
                 }
-                if fonte == "verra":
-                    # Não insistir após indisponibilidade/limite do registro. Retomar só os não concluídos.
+                if isinstance(erro, (FonteIndisponivel, httpx.HTTPError)):
+                    seguidas += 1
+                if fonte == "verra" and seguidas >= VERRA_FALHAS_SEGUIDAS:
+                    # Fonte fora do ar ou limitando: não insistir. Retomar só os não concluídos. Um projeto com
+                    # problema próprio (KML ilegível, fora do Brasil, sem documento) não para a fila: antes, o primeiro
+                    # erro de qualquer projeto encerrava toda a coleta Verra.
                     break
 
 
