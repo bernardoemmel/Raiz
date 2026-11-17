@@ -1,0 +1,111 @@
+# Fontes estaduais de Mato Grosso do Sul. PIN-MS (Plataforma de Informações do MS) é um ArcGIS Enterprise:
+# portal em www.pinms.ms.gov.br/portal, serviços em www.pinms.ms.gov.br/arcgis/rest/services. O SISLA antigo
+# (sisla.imasul.ms.gov.br) só devolve uma página vazia. Testado desta nuvem em 17/11/2026.
+uf: MS
+verificado_em: "2026-11-17"
+fontes:
+  - id: ms_embargos
+    nome: Áreas embargadas do IMASUL (transparência)
+    tema: embargo_estadual
+    orgao: IMASUL
+    acesso: aberto
+    tipo: arcgis
+    url: https://www.pinms.ms.gov.br/arcgis/rest/services/IMASUL/areas_embargadas_transparencia/MapServer/21
+    srs: EPSG:4674
+    geometria: poligono
+    manter: [carms, ai, numero_termo, tipo_penalidade, data_lavradura, municipio, motivo_autuacao, area_ha, cod_mun]
+    descartar: [nome_infrator, cpf_ou_cnpj_proprietario, nome_proprietario]
+    efeito: exclusao
+    motivo: embargo_estadual
+    criterio: >-
+      Embargo estadual acima do limiar = exclusão; borda = ressalva. A camada traz o código do CAR-MS (carms),
+      que liga o embargo ao imóvel mesmo quando o polígono do SICAR difere do estadual.
+    lgpd: Nome e documento (vazios na versão pública) apagados na entrada.
+    licenca: Dado público de transparência do IMASUL; licença não declarada.
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 4.128 polígonos"}
+
+  - id: ms_autos
+    nome: Autos de infração do IMASUL
+    tema: autos_infracao
+    orgao: IMASUL
+    acesso: aberto
+    tipo: arcgis
+    url: https://www.pinms.ms.gov.br/arcgis/rest/services/IMASUL/autos_infracoes/MapServer/22
+    srs: EPSG:4674
+    geometria: ponto
+    campo_data: datalavradura
+    manter: [numerotermo, tipopenalidade, datalavradura, municipio, motivoautuacao]
+    descartar: [nomeinfrator, cpfoucnpjproprietario, nomeproprietario, coordenadas]
+    efeito: ressalva
+    motivo: auto_estadual
+    criterio: Auto estadual dentro do imóvel = ressalva.
+    lgpd: Nome e documento (mascarados na fonte) apagados na entrada.
+    licenca: Dado público de transparência do IMASUL.
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 1.691 pontos"}
+
+  - id: ms_uc
+    nome: Unidades de conservação (federais, estaduais e municipais) do IMASUL
+    tema: unidade_conservacao
+    orgao: IMASUL
+    acesso: aberto
+    tipo: arcgis
+    url: https://www.pinms.ms.gov.br/arcgis/rest/services/IMASUL/ucs_limites/MapServer/0
+    srs: EPSG:4674
+    geometria: poligono
+    manter: [nome_uc, leis, categoria, grupo_desc, esfera, plano_manejo]
+    descartar: []
+    efeito: ressalva
+    motivo: uc_estadual_uso_sustentavel
+    regra_efeito:
+      - campo: grupo_desc
+        padrao: "(?i)prote..o integral"
+        efeito: exclusao
+        motivo: uc_estadual_protecao_integral
+    criterio: Proteção integral acima do limiar = exclusão; uso sustentável = ressalva.
+    lgpd: Sem dado pessoal.
+    licenca: Dado público do IMASUL.
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 132 UCs (o servidor às vezes corta a conexão; a coleta repete)"}
+
+  - id: ms_terras_devolutas
+    nome: Terras devolutas regularizadas e tituladas pela AGRAER (2014–2024)
+    tema: terra_devoluta
+    orgao: AGRAER-MS
+    acesso: aberto
+    tipo: arcgis
+    url: https://www.pinms.ms.gov.br/arcgis/rest/services/AGRAER_SERVICOS/Terras_Tituladas/MapServer/1
+    srs: EPSG:4674
+    geometria: poligono
+    manter: [numero_tit, processo, ano_proc, municipio, situacao, area_ha, data_contr, emissao_ti]
+    descartar: [nome_titul]
+    efeito: ressalva
+    motivo: titulo_estadual_terra_devoluta
+    criterio: >-
+      Imóvel titulado pelo Estado sobre terra devoluta: o título de alienação costuma trazer cláusulas resolutivas
+      (prazo de inalienabilidade e cumprimento da função social). Ressalva para conferir o título e a matrícula
+      antes de contrato de 40 anos. A AGRAER não publica as devolutas ainda não tituladas (pendente).
+    lgpd: Nome do titulado apagado na entrada.
+    licenca: Dado público da AGRAER.
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 127 títulos (camada 0 é ponto; a 1 é o polígono)"}
+    alternativa: Terras devolutas ainda não tituladas não têm camada pública; pedir à AGRAER por LAI.
+
+  - id: ms_povos_tradicionais
+    nome: Comunidades quilombolas e aldeias indígenas (AGRAER)
+    tema: territorio_tradicional
+    orgao: AGRAER-MS
+    acesso: aberto
+    tipo: arcgis
+    url: https://www.pinms.ms.gov.br/arcgis/rest/services/AGRAER_SERVICOS/Povos_Tradicionais/MapServer
+    subcamadas: [0, 1, 2]
+    srs: EPSG:4674
+    geometria: ponto
+    manter: [MunicIpio, Comunidade, Sit_Territ]
+    descartar: [PerfSocPro, Populacao]
+    efeito: ressalva
+    motivo: comunidade_tradicional_proxima
+    raio_m: 3000
+    criterio: >-
+      Pontos (sem limite do território): comunidade a até 3 km do imóvel = ressalva para conferir território e
+      consulta prévia (CLPI). Não exclui sozinho porque o ponto não mede a área.
+    lgpd: Sem dado pessoal individual; campos de perfil social apagados.
+    licenca: Dado público da AGRAER.
+    situacao: {testado_em: "2026-11-17", resultado: "ok, 22 comunidades na camada 0"}
