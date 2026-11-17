@@ -9,3 +9,8 @@ condition = "AND"
 paths = ['''^docs/colunas\.md$''']
 regexTarget = "secret"
 regexes = ['''^regularizacao_chance_12m$''']
+
+[[allowlists]]
+description = "Commit público fixo do repositório da InfoAmazonia (raiz/coleta/compromissos_secundarios.py), não é credencial"
+regexTarget = "match"
+regexes = ['''350f832309a89286af119785deb580db84e4f643''']
