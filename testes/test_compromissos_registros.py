@@ -141,3 +141,62 @@ def test_iterador_retomada_por_checkpoint_e_limite(monkeypatch):
     # Outra rodada sem o checkpoint revisita os projetos, inclusive os retirados.
     list(fontes.iterar_compromissos(fontes=["verra"], limite_verra=1))
     assert chamadas[-1] == "1"
+
+
+def _verra_com(documentos, respostas):
+    def handle(req):
+        if "getProjectById" in req.url.path:
+            return httpx.Response(
+                200,
+                json={
+                    "id": 1115,
+                    "state_name": "Registered",
+                    "mixedUnitList": [{"country_name": "Brazil", "province": "State of Para"}],
+                    "documentList": documentos,
+                },
+            )
+        return httpx.Response(200, content=respostas[json.loads(req.content)["id"]])
+
+    return httpx.Client(transport=httpx.MockTransport(handle))
+
+
+def _kmz(kml: bytes) -> bytes:
+    import io
+    import zipfile
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("doc.kml", kml)
+    return buf.getvalue()
+
+
+def test_verra_so_com_kml_other_vira_indicio_e_kmz_e_lido():
+    """Projeto sem "Project Boundary", mas com .kml ou .kmz publicado como "Other": limite só como indício."""
+    docs = [
+        {"id": 1, "type_name": "Other", "document_name": "area.kmz"},
+        {"id": 2, "type_name": "PDD", "document_name": "pdd.pdf"},
+    ]
+    with _verra_com(docs, {1: _kmz(KML)}) as c:
+        r = fontes.coletar_verra("VCS1115", cliente=c, observado_em="2026-11-17")["registros"][0]
+    assert r["certeza"] == "poligono_secundario" and r["geometry"] is not None and r["uf"] == "PA"
+    # com o limite oficial presente, o "Other" é ignorado e a certeza continua oficial
+    docs = [
+        {"id": 1, "type_name": "Other", "document_name": "outro.kml"},
+        {"id": 3, "type_name": "Project Boundary (KML File)", "document_name": "limite.kml"},
+    ]
+    pedidos = []
+
+    def handle(req):
+        if "getProjectById" in req.url.path:
+            return httpx.Response(200, json={"id": 1115, "mixedUnitList": [{"country_name": "Brazil",
+                                  "province": "State of Para"}], "documentList": docs})  # fmt: skip
+        pedidos.append(json.loads(req.content)["id"])
+        return httpx.Response(200, content=KML)
+
+    with httpx.Client(transport=httpx.MockTransport(handle)) as c:
+        r = fontes.coletar_verra("VCS1115", cliente=c, observado_em="2026-11-17")["registros"][0]
+    assert r["certeza"] == "poligono_oficial" and pedidos == [3]
+    # KMZ corrompido não derruba o projeto: sem geometria, só catálogo
+    with _verra_com([{"id": 1, "type_name": "Other", "document_name": "ruim.kmz"}], {1: b"nao e zip"}) as c:
+        r = fontes.coletar_verra("VCS1115", cliente=c, observado_em="2026-11-17")["registros"][0]
+    assert r["certeza"] == "catalogo_sem_geometria" and r["geometry"] is None
