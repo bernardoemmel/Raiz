@@ -1,0 +1,63 @@
+name: Dossiê executivo do lote
+
+# Município -> dossiê com lotes de restauração por vizinhança, ressalvas, prontidão, checklist do que já foi conferido
+# em dado público, validação humana e anexo dos CARs (raiz/dossie_lote.py, critérios em docs/lote.md). Lê o que o
+# processamento já calculou (não refaz o funil) e os limites de projetos de carbono do Release insumos. O resultado
+# (Markdown, PDF, Word e JSON) vai só para o arquivo privado: nada de artifact, nada de log com código de fazenda.
+
+on:
+  workflow_dispatch:
+    inputs:
+      municipio:
+        description: "código IBGE do município (ex.: 1505502, Paragominas)"
+        required: true
+        type: string
+      modo:
+        description: "normal: risco vira ressalva; estrito: risco tira do lote"
+        required: true
+        default: normal
+        type: choice
+        options: [normal, estrito]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dossie-lote-${{ inputs.municipio }}
+  cancel-in-progress: false
+
+env:
+  RAIZ_DADOS_PRIVADOS_URL: ${{ vars.RAIZ_DADOS_PRIVADOS_URL || format('release-github://{0}/dados-privados', github.repository) }}
+  RAIZ_DADOS_PRIVADOS_TOKEN: ${{ secrets.RAIZ_DADOS_PRIVADOS_TOKEN || github.token }}
+
+jobs:
+  dossie:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.13.6"
+          enable-cache: false
+      - run: uv sync --frozen
+      - name: Baixar os limites de projetos de carbono (Release insumos)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/comprometida"
+          if gh release download insumos -R "$GITHUB_REPOSITORY" -D "$RUNNER_TEMP/comprometida" --clobber \
+               -p comprometida_limites.parquet; then
+            echo "limites de projetos de carbono: ok"
+          else
+            echo "::warning::sem limites de carbono: o dossiê usa só o status por CAR já calculado"
+          fi
+      - name: Montar o dossiê e enviar ao arquivo privado
+        env:
+          RAIZ_COMPROMETIDA_DIR: ${{ runner.temp }}/comprometida
+          MUNICIPIO: ${{ inputs.municipio }}
+          MODO: ${{ inputs.modo }}
+        run: |
+          if ! [[ "$MUNICIPIO" =~ ^[0-9]{7}$ ]]; then echo "::error::município: 7 dígitos do IBGE"; exit 1; fi
+          uv run raiz dossie lote --municipio "$MUNICIPIO" --modo "$MODO" \
+            --nome "dossie-$MUNICIPIO-$MODO" --saida "$RUNNER_TEMP/dossie" --enviar

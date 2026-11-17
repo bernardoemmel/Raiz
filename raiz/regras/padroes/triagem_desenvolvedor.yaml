@@ -1,7 +1,7 @@
 # Triagem em lote para o desenvolvedor de restauração: lista de CAR -> ranking com nota 0 a 100 e o motivo de cada nota
 # (raiz/triagem_desenvolvedor/nota.py). Premissas PROVISÓRIAS: calibrar com a primeira carteira real e com o que o
 # desenvolvedor comprar. Mudou este arquivo, muda a versão gravada em cada ranking.
-versao: triagem-desenvolvedor-2026a
+versao: triagem-desenvolvedor-2026b
 
 # peso de cada parte da nota (somam 1). Parte sem dado sai da conta e o peso se reparte entre as outras.
 pesos: {custo: 0.35, tir: 0.25, credito: 0.20, terra: 0.20}
@@ -27,6 +27,11 @@ travas:
     uc_protecao_integral_ha: unidade de conservação de proteção integral
     desm_pos2020_ha: desmatamento depois de 2020
     alerta_ultimo_ano: alerta de desmatamento no último ano
+
+# gleba pública federal não destinada (CNFP) em mais de 10% do CAR (limiar em caminho_terra.yaml,
+# gleba_federal_fracao): "trava" põe a fazenda em nao_segue; "ressalva" só a tira de recomendada.
+# Sem medição (sem CNFP no processamento) não trava nem ressalva: o motivo diz "gleba federal não medida".
+gleba_federal: {modo: trava}
 
 # ressalvas não travam, mas tiram a fazenda de "recomendada"
 ressalvas:
