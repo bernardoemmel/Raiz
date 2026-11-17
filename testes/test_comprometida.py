@@ -251,3 +251,40 @@ def test_carga_leva_o_status_como_complemento_do_imovel(con, tmp_path):
     assert {x.cod_imovel: (x.s, x.p) for x in rs} == dict(
         zip(cods, [("livre", None), ("ja_comprometida", "VCS665"), ("nao_verificado", None)], strict=True)
     )
+
+
+# --- conferência contra a lista CAR x REDD+ do Pará ------------------------------------------------------------------
+
+
+def test_conferir_lista_car_redd_do_para(tmp_path):
+    from typer.testing import CliRunner
+
+    from raiz.cli import app
+    from raiz.comprometida import pacote as PK
+
+    uf = tmp_path / "saida" / "PA"
+    uf.mkdir(parents=True)
+    a, b, c, d = (f"PA-{COD}-{x * 32}" for x in "ABCD")
+    pd.DataFrame({"cod_imovel": [a, b, c], "status_sobreposicao": ["ja_comprometida", "livre", "nao_verificado"]}
+                 ).to_csv(uf / f"comprometida_{COD}.csv", index=False)  # fmt: skip
+    lista = tmp_path / "lista.csv"
+    pd.DataFrame({
+        "Project_ID": ["1953", "1953", "4681", "4681", "665"],
+        "Project_Nm": ["nome que nunca sai"] * 5,
+        "Project_ha": [53000.0] * 5,
+        "CAR_cod_im": [a, a, b, c, d],  # A repetido (soma), B e C que a camada não marcou, D sem arquivo
+        "sobreposicao_ha": [100.0, 20.0, 1458.0, 0.4, 50.0],  # C é lasca (< 5 ha)
+    }).to_csv(lista, index=False)  # fmt: skip
+    lis = PK.ler_lista(lista)
+    assert set(lis.projeto_id) == {"VCS1953", "VCS4681", "VCS665"} and "Project_Nm" not in lis.columns
+    assert lis[lis.cod_imovel == a].sobreposicao_ha.iloc[0] == 120.0
+    resumo, lac = PK.conferir(lista, tmp_path / "saida")
+    assert resumo["car_na_lista"] == 4 and resumo["car_relevantes"] == 3  # C é lasca e fica de fora
+    assert resumo["concordam"] == 1 and resumo["lacunas"] == 1 and resumo["sem_arquivo"] == 1
+    assert lac.to_dict("records") == [dict(cod_imovel=b, projeto_id="VCS4681", sobreposicao_ha=1458.0,
+                                           status_raiz="livre")]  # fmt: skip
+    assert resumo["projetos_nas_lacunas"] == ["VCS4681"]
+    r = CliRunner().invoke(app, ["comprometida", "conferir-pacote", str(lista), "--saida", str(tmp_path / "saida"),
+                                 "--lacunas", str(tmp_path / "lac.csv")])  # fmt: skip
+    assert r.exit_code == 0 and "lacunas" in r.output and (tmp_path / "lac.csv").exists()
+    assert "nome que nunca sai" not in r.output
