@@ -467,7 +467,8 @@ def test_download_estrito_distingue_estado_sem_pacote_de_download_quebrado(tmp_p
 
     class Servidor(BaseHTTPRequestHandler):
         def do_GET(self):
-            pedidos.append(self.path)
+            if self.path != "/reprocessamento.json":  # andamento opcional, conferido à parte
+                pedidos.append(self.path)
             if self.path == "/estados.json":
                 self.send_response(200)
                 self.end_headers()

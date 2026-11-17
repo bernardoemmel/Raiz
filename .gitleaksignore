@@ -24,3 +24,5 @@ d33d3bf4311696cc09b3a75a5416a9493ebf2fa6:testes/mcp/sem_leitor_auditado.json:gen
 # Falsos positivos de outras branches (o CI varre todas): nome de arquivo de teste com 64 letras "a" e usuário do banco do Keycloak.
 4f6089840f03224d44b49dfba2e425976ce4e931:testes/test_armazem_balde.py:generic-api-key:110
 351aa40afa683bd80a9d0078e5ce90cc926ca006:infra/docker-compose.keycloak.yml:generic-api-key:28
+# URL JDBC interna sem credencial no commit do painel (75f2b22), igual às já liberadas.
+75f2b22750f4e827af5d378a0ebc829a17b9d3dc:infra/docker-compose.keycloak.yml:generic-api-key:28
