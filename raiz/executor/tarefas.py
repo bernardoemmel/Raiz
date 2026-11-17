@@ -68,6 +68,8 @@ CODIGO = {
     "rebanho": ("raiz/rebanho.py",),
     # tarefa própria, folha do grafo: mexer aqui ou receber coleta nova refaz só ela (o funil fica)
     "comprometida": ("raiz/comprometida/status.py", "raiz/terra_comprometida.py"),
+    # restrições nacionais (SICAR completo, SIGMINE, autos do Ibama, Lista Suja): também folha, mesma lógica
+    "restricoes": ("raiz/restricoes/status.py", "raiz/restricoes/coleta.py"),
     # vegetação e relevo (RL pelo mapa do IBGE, Lei da Mata Atlântica, TerraClass, APP de relevo do ANADEM): folha
     "ambiental": (
         "raiz/ambiental/status.py",
@@ -89,6 +91,7 @@ DEPENDE = {
     "ficha": ("funil", "filtros", "mapbiomas", "flag", "terra"),
     "rebanho": ("funil", "mapbiomas", "direto"),
     "comprometida": ("funil",),
+    "restricoes": ("funil",),
     "ambiental": ("funil", "mapbiomas"),
     "desenvolvedor": ("funil", "filtros", "mapbiomas", "direto", "ficha", "terra", "rebanho", "ambiental"),
 }
@@ -104,6 +107,7 @@ SAIDAS = {
     "ficha": ("ficha_{cod}.csv", "camadas_{cod}.parquet", "camadas_{cod}.pmtiles"),
     "rebanho": ("rebanho_{cod}.csv",),
     "comprometida": ("comprometida_{cod}.csv",),
+    "restricoes": ("restricoes_{cod}.csv",),
     "ambiental": ("ambiental_{cod}.csv",),
     "desenvolvedor": ("desenvolvedor_{cod}.csv",),
 }
@@ -145,6 +149,10 @@ def versao(nome: str) -> str:
         from raiz.comprometida import status
 
         extra = status.versao()
+    elif nome == "restricoes":
+        from raiz.restricoes import status as restricoes_status
+
+        extra = restricoes_status.versao()
     elif nome == "ambiental":
         from raiz.ambiental import status as ambiental_status
 
@@ -266,6 +274,10 @@ def externas(nome: str):
             from raiz.comprometida import status
 
             return {"limites": status.assinatura()}
+        if nome == "restricoes":
+            from raiz.restricoes import status as restricoes_status
+
+            return {"camadas": restricoes_status.assinatura()}
         if nome == "ambiental":
             from raiz.ambiental import status as ambiental_status
 
@@ -306,6 +318,21 @@ def rodar_comprometida(uf: str, cod: int, pasta: Path) -> None:
     status.escrever_municipio(pasta, int(cod))
 
 
+_CAMADAS_RESTRICOES = None
+
+
+def rodar_restricoes(uf: str, cod: int, pasta: Path) -> None:
+    """Cruza os CAR do município com as restrições nacionais. Como a "comprometida", não passa por
+    raiz/funil/rodar.py (mexer nele refaria o funil). As camadas são lidas uma vez por processo."""
+    global _CAMADAS_RESTRICOES
+    from raiz.restricoes import status
+
+    marca = status.assinatura()
+    if _CAMADAS_RESTRICOES is None or _CAMADAS_RESTRICOES[0] != marca:
+        _CAMADAS_RESTRICOES = (marca, status.Camadas())
+    status.escrever_municipio(pasta, int(cod), camadas=_CAMADAS_RESTRICOES[1])
+
+
 _CAMADAS_AMBIENTAL = None
 
 
@@ -321,6 +348,9 @@ def rodar_ambiental(uf: str, cod: int, pasta: Path) -> None:
     status.escrever_municipio(pasta, int(cod), camadas=_CAMADAS_AMBIENTAL[1])
 
 
+_RODAR_PROPRIO = {"comprometida": rodar_comprometida, "restricoes": rodar_restricoes, "ambiental": rodar_ambiental}
+
+
 def tarefas_producao() -> list[Tarefa]:
     return [
         Tarefa(
@@ -328,7 +358,7 @@ def tarefas_producao() -> list[Tarefa]:
             depende=DEPENDE[n],
             saidas=SAIDAS[n],
             versao=lambda n=n: versao(n),
-            rodar={"comprometida": rodar_comprometida, "ambiental": rodar_ambiental}.get(n) or rodar(n),
+            rodar=_RODAR_PROPRIO.get(n) or rodar(n),
             externas=externas(n),
             pode_ficar_vazio=(n == "funil"),
         )  # fmt: skip
