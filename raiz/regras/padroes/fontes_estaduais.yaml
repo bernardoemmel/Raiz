@@ -50,3 +50,33 @@ motivos:
   prioridade_nascentes: Área prioritária do Programa Nascentes (SP); ajuda a vender restauração e compensação.
   prioridade_restauracao_mg: Área prioritária para restauração em Minas Gerais.
   desembargo_estadual: Processo de embargo estadual já desembargado.
+  # Amazônia Legal (PA, RO, MT, MA, AM, AC, AP, RR, TO)
+  desmatamento_ilegal_estadual: >-
+    Imóvel na Lista de Desmatamento Ilegal do Pará, com o desmate dentro do CAR acima do limiar: recompor é obrigação
+    do dono (não gera crédito) e a área fica impedida de negócio até a regularização na SEMAS.
+  desmatamento_ilegal_estadual_borda: Desmatamento ilegal da LDI ligado ao CAR, mas abaixo do limiar; conferir na SEMAS.
+  desmatamento_ilegal_estadual_ponto: Área da Lista de Desmatamento Ilegal (sem CAR ligado) com o ponto dentro do imóvel; pedir o polígono à SEMAS.
+  territorio_pesqueiro: Território pesqueiro reconhecido pelo estado sobre o imóvel; consultar as comunidades antes de restaurar as margens.
+  servidao_ambiental: Servidão ambiental registrada no imóvel; a área já compensa reserva legal de outro imóvel e não pode ser vendida de novo.
+  pra_assinado: Termo de compromisso do PRA assinado; a recomposição de reserva legal e APP do termo é obrigação, não é adicional.
+  zona_amortecimento_uc: Imóvel na zona de amortecimento de UC estadual; o plano de manejo pode limitar o uso.
+  area_bloqueada_estadual: Área bloqueada pelo estado (reservatório de usina) sobre o imóvel.
+  area_bloqueada_estadual_borda: Área bloqueada pelo estado encosta no imóvel; conferir o limite.
+  area_bloqueada_estadual_ponto: Área bloqueada pelo estado registrada como ponto dentro do imóvel.
+  gleba_estadual: >-
+    Floresta pública estadual não destinada (gleba arrecadada ou devoluta, CNFP) sobre o imóvel: posse em terra do
+    estado; o caminho é a regularização no instituto de terras estadual.
+  gleba_transferida_a_conferir: Gleba transferida pela União ao estado (AP, RR) sem camada pública; conferir no órgão de terras estadual.
+  embargo_estadual_a_conferir: Órgão ambiental estadual sem camada pública de embargos acessível; conferir embargo estadual do imóvel.
+  car_estadual_a_conferir: CAR estadual próprio (SIMCAR-MT) sem acesso daqui; conferir situação e pendências do CAR no sistema do estado.
+  zee_a_conferir: Zoneamento ecológico-econômico estadual sem camada; conferir a zona (pode mudar a reserva legal para recompor).
+  uc_estadual_a_conferir: Base estadual de UCs sem download direto; conferir UC estadual (o CNUC nacional cobre a maior parte).
+  redd_estadual_a_conferir: Programa estadual de REDD+ em UCs (AM) sem camada; conferir dupla contagem com o programa.
+  redd_jurisdicional_estadual: Estado com programa jurisdicional de REDD+ (AC, SISA); crédito de projeto precisa de registro e desconto no programa.
+  zsee_ro_zona_1: "ZSEE de Rondônia, zona 1 (uso consolidado): reserva legal para recompor pode ser 50% (Lei 12.651, art. 13 I)."
+  zsee_ro_zona_2: ZSEE de Rondônia, zona 2 (uso especial); reserva legal de 80%.
+  zsee_ro_zona_3: ZSEE de Rondônia, zona 3 (áreas institucionais); conferir restrições da zona.
+  matricula_acima_limite_tjpa: >-
+    Imóvel do Pará acima de 2.500 ha: se a matrícula veio de título público maior que o limite da época (10.000 ha
+    até 1964, 3.000 ha até 1988, 2.500 ha depois), pode estar bloqueada ou cancelada (TJPA e CNJ, PP
+    0001943-67.2009); conferir na certidão de inteiro teor e no CNIB.
