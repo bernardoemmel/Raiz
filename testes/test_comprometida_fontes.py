@@ -102,7 +102,7 @@ def test_infoamazonia_le_so_identificador_status_e_uf(tmp_path):
             "id_crbn": ["BR4681VER", "BR4681VER", "BR125CER", "XYZ"],
             "status": ["Registration requested", "Registered", "Certified", "Registered"],
             "uf": ["PA", "PA", "AC, MT", "PA"],
-            "id_mpr*": ["12.345.678/0001-90"] * 4,  # CNPJ da empresa: nunca lido
+            "id_mpr*": ["doc-da-empresa"] * 4,  # CNPJ da empresa: nunca lido
             "emprs__": ["Empresa X"] * 4,
         },
         geometry=[PROJETO, box(-47.4, -3.4, -47.3, -3.3), box(-70, -10, -69.9, -9.9), box(0, 0, 1, 1)],
@@ -116,7 +116,7 @@ def test_infoamazonia_le_so_identificador_status_e_uf(tmp_path):
     assert y["certeza"] == "poligono_secundario" and y["situacao"] == "ativo" and y["uf"] == "PA"
     assert y["geometry"].area == pytest.approx(0.05, rel=1e-3)  # as feições do mesmo projeto viram uma
     assert regs["CER125"]["registro"] == "CERCARBONO" and regs["CER125"]["uf"] is None
-    assert not any("12.345" in str(v) or "Empresa" in str(v) for x in r["registros"] for v in x.values())
+    assert not any("doc-da-empresa" in str(v) or "Empresa" in str(v) for x in r["registros"] for v in x.values())
     assert r["cobertura"]["estado"] == "parcial"
 
 
