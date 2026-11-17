@@ -2313,6 +2313,6 @@ button.link:hover {
   .calendario-dia { display: flex; gap: var(--e2); }
 }
 
-/* A ação mantém contraste AA no tema escuro; os selos continuam usando forma e texto. */
+/* A ação mantém contraste AA no tema claro; os selos continuam usando forma e texto. */
 .botao.principal, .botao.principal:hover { color: var(--v2-texto-acao); }
-.selo.conferir, .selo.ruim { color: var(--chao); }
+.selo.conferir, .selo.ruim { color: var(--tinta); }
