@@ -206,6 +206,16 @@ def _xml_tolerante(dados: bytes):
         raise ValueError("Documento KML ilegível") from None
 
 
+def so_area(g):
+    """Só a parte com área: make_valid de anel que se cruza pode devolver coleção com linha ou ponto (VCS1382)."""
+    if g is None or g.is_empty:
+        return None
+    if g.geom_type == "GeometryCollection":
+        partes = [p for p in g.geoms if p.geom_type in ("Polygon", "MultiPolygon") and not p.is_empty]
+        g = union_all(partes) if partes else None
+    return g if g is not None and g.geom_type in ("Polygon", "MultiPolygon") and not g.is_empty else None
+
+
 def ler_kml(dados: bytes):
     """Somente polígonos explícitos do documento, com furos. Ignora descrições e nomes."""
     if len(dados) > LIMITE or b"<!DOCTYPE" in dados.upper() or b"<!ENTITY" in dados.upper():
@@ -222,10 +232,11 @@ def ler_kml(dados: bytes):
         shell = coords(p.find("{*}outerBoundaryIs/{*}LinearRing/{*}coordinates"))
         holes = [coords(e) for e in p.findall("{*}innerBoundaryIs/{*}LinearRing/{*}coordinates")]
         if len(shell) >= 4:
-            polys.append(make_valid(Polygon(shell, holes)))
-    if not polys:
+            polys.append(so_area(make_valid(Polygon(shell, holes))))
+    polys = [p for p in polys if p is not None]
+    if not polys or so_area(union_all(polys)) is None:
         raise ValueError("Documento sem polígono de projeto; pontos não provam área")
-    return union_all(polys)
+    return so_area(union_all(polys))
 
 
 VERRA_API = "https://prod-us.api.platts.com/ci-raas-prod/br-reg/rest"
@@ -347,7 +358,7 @@ def coletar_verra(codigo: str, *, cliente=None, observado_em: str | None = None)
             if geoms
             else "catalogo_sem_geometria",
             "uf": uf,
-            "geometry": union_all(geoms) if geoms else None,
+            "geometry": so_area(union_all(geoms)) if geoms else None,
             "fonte_url": url,
             "data_referencia": None,
             "observado_em": hoje,

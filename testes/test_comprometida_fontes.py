@@ -219,3 +219,15 @@ def test_area_geografica_de_projeto_agrupado_nao_compromete(tmp_path, monkeypatc
     monkeypatch.setenv("RAIZ_COMPROMETIDA_DIR", str(tmp_path / "l"))
     pasta, c = _municipio(tmp_path, {"A": IMOVEL}, {"A": 3263.0})
     assert ST.calcular_municipio(pasta, COD, hoje=HOJE).status_sobreposicao.iloc[0] == "livre"
+
+
+def test_kml_com_anel_que_se_cruza_fica_so_com_a_area():
+    # make_valid de anel com laço pode devolver coleção com linha (VCS1382): só a área entra
+    kml = (
+        b'<kml xmlns="http://www.opengis.net/kml/2.2"><Polygon><outerBoundaryIs><LinearRing><coordinates>'
+        b"0,0 1,1 1,0 0,1 0,0 0,0</coordinates></LinearRing></outerBoundaryIs></Polygon>"
+        b"<Polygon><outerBoundaryIs><LinearRing><coordinates>2,2 3,2 3,2 2,2</coordinates></LinearRing>"
+        b"</outerBoundaryIs></Polygon></kml>"
+    )
+    g = CR.ler_kml(kml)
+    assert g.geom_type in ("Polygon", "MultiPolygon") and g.area == pytest.approx(0.5)
