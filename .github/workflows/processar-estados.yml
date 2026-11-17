@@ -281,6 +281,16 @@ jobs:
             rm -f motor/cache/comprometida/comprometida_*
             echo "sem limites da terra já comprometida (tarefa comprometida fica nao_verificado)"
           fi
+          # Restrições nacionais (coletar-restricoes.yml): SIGMINE, autos do Ibama e Lista Suja. Sem elas a tarefa
+          # "restricoes" marca essas fontes como não verificadas (nunca "livre"); o CAR completo vem do CAR nacional.
+          mkdir -p motor/cache/restricoes
+          if gh release download insumos -R "$GITHUB_REPOSITORY" -D motor/cache/restricoes --clobber \
+               -p 'restricoes_*' 2>/dev/null; then
+            echo "restrições nacionais: $(find motor/cache/restricoes -maxdepth 1 -type f -name 'restricoes_*' | wc -l) arquivos"
+          else
+            rm -f motor/cache/restricoes/restricoes_*
+            echo "sem restrições nacionais coletadas (tarefa restricoes fica nao_verificado nessas fontes)"
+          fi
 
       - name: Buscar o publicador do workflow para finalizar executores de versões anteriores
         id: publicador_checkout

@@ -656,6 +656,8 @@ def decisoes_selecao(
             motivos.append("inelegível pela área, caminho da terra ou bloqueio territorial")
         if li["problema"]:
             motivos.append("problema ambiental sinalizado pelo motor")
+        if li.get("restricao_nacional") == "exclusao":
+            motivos.append(f"restrição nacional: {li.get('restricao_motivos')}")
         for ex in sel["ped"].exclusoes:
             if li.get(ex):
                 motivos.append(ex)
@@ -733,6 +735,24 @@ def _item(st: str, texto: str) -> dict:
     return {"situacao": st, "detalhe": texto}
 
 
+def restricoes_do_lote(lote: pd.DataFrame) -> dict:
+    """SICAR completo, SIGMINE, autos do Ibama e Lista Suja nas fazendas do lote (raiz/restricoes/status.py).
+    Exclusão já saiu antes (bloqueio); aqui ficam as ressalvas e o que não foi verificado."""
+    if "restricao_nacional" not in lote or not len(lote):
+        return _item("pendente", "restrições nacionais ainda não calculadas nestes municípios (SICAR completo, "
+                                 "SIGMINE, autos do Ibama e Lista Suja): conferir antes de contratar")  # fmt: skip
+    st = lote.restricao_nacional
+    sem = int(st.isna().sum() + (st == "nao_verificado").sum())
+    res = lote[st == "ressalva"]
+    motivos = res.restricao_motivos.dropna().str.split("|").explode().value_counts() if len(res) else pd.Series()
+    partes = [f"{_br(len(res))} fazendas com ressalva"] if len(res) else ["nenhuma fazenda com ressalva"]
+    if len(motivos):
+        partes.append("(" + ", ".join(f"{k}: {int(v)}" for k, v in motivos.items()) + ")")
+    if sem:
+        partes.append(f"; {_br(sem)} sem verificação completa")
+    return _item("ok" if not len(res) and not sem else "pendente", " ".join(partes))
+
+
 def checagens(res: dict, tabela: pd.DataFrame, c: dict, r: dict) -> dict[str, dict]:
     """O que dá para conferir com os dados da Raíz. situação: ok, falha, pendente (falta dado ou ação de alguém)."""
     lt = premissas_lote(r)
@@ -763,6 +783,7 @@ def checagens(res: dict, tabela: pd.DataFrame, c: dict, r: dict) -> dict[str, di
                                     f"contrato com o dono de {anos} anos (longevidade da Verra: 40)")  # fmt: skip
     out["sem_desmatamento"] = _item("ok", "só entram fazendas sem embargo, terra indígena, UC de proteção integral ou "
                                           "bloqueio territorial do motor")  # fmt: skip
+    out["restricoes_nacionais"] = restricoes_do_lote(lote)
     out["metodologia"] = _item("ok", "VM0047 v1.1 da Verra, aprovada pelo ICVCM (CCP)")
     out["creditos_liquidos"] = _item(
         "ok" if float(c["incerteza"]) >= 0.10 else "falha",

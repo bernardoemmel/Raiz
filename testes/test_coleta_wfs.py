@@ -89,7 +89,7 @@ def test_urls_do_manifesto():
     m = carregar()
     assert len(urls(m.fonte("gpw_pasto"))) == 2 and "{" not in urls(m.fonte("gpw_pasto"))[0]
     assert len(urls(m.fonte("geobr_territorios"))) == 3
-    assert urls(m.fonte("sigmine")) == []  # sem endereço confirmado
+    assert len(urls(m.fonte("sigmine"))) == 27  # um shapefile por UF (raiz/restricoes/coleta.py)
 
 
 def test_checar_url_sem_head():

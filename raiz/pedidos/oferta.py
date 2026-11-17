@@ -30,7 +30,8 @@ COLUNAS = (
     "mitigacao", "embargo", "terra_indigena", "uc_protecao_integral", "projeto_carbono", "bloqueio", "problema",
     "elegivel", "restauracao_versao", "cambio", "regeneracao_ha", "semeadura_ha", "plantio_ha", "vazamento_motivo",
     "vazamento_mitigacao_imovel", "regularizacao_classe", "salvaguardas", "elegivel_sem_salvaguardas",
-    "car_conferido_em", "car_conferencia", "car_situacao", "car_geometria_alterada",
+    "car_conferido_em", "car_conferencia", "car_situacao", "car_geometria_alterada", "restricao_nacional",
+    "restricao_exclusao", "restricao_ressalva", "restricao_motivos",
 )  # fmt: skip
 
 
@@ -108,6 +109,10 @@ def de_linha(linha: dict, lon: float | None = None, lat: float | None = None) ->
     bloqueio = str(linha.get("filtro_territorial") or "").lower() == "bloqueio"
     if linha.get("car_situacao") in ("a_conferir", "fora_do_lote", "recalcular"):
         bloqueio = True
+    # restrições nacionais (raiz/restricoes/status.py): exclusão sai do lote; ressalva fica, marcada com o motivo
+    restricao = linha.get("restricao_nacional") if isinstance(linha.get("restricao_nacional"), str) else None
+    if restricao == "exclusao":
+        bloqueio = True
     from raiz.salvaguardas import avaliar
 
     elegivel_sem_salvaguardas = area > 0 and caminho is not None and caminho_terra not in NAO_ORIGINA and not bloqueio
@@ -174,6 +179,13 @@ def de_linha(linha: dict, lon: float | None = None, lat: float | None = None) ->
         # quão perto do título está a posse ou o assentamento (raiz/titulo/regularizacao.py)
         "regularizacao_classe": linha.get("regularizacao_classe")
         if isinstance(linha.get("regularizacao_classe"), str)
+        else None,
+        # nulo = camada ainda não calculada no município (nunca vira "livre")
+        "restricao_nacional": restricao,
+        "restricao_exclusao": (restricao == "exclusao") if restricao else None,
+        "restricao_ressalva": (restricao == "ressalva") if restricao else None,
+        "restricao_motivos": linha.get("restricao_motivos")
+        if isinstance(linha.get("restricao_motivos"), str)
         else None,
     }
 
