@@ -116,7 +116,7 @@ jobs:
           RAIZ_DOMINIO: ${{ vars.RAIZ_DOMINIO }}
         run: node front/scripts/comparar-cobertura.mjs
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site
 
