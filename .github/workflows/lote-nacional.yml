@@ -75,9 +75,22 @@ jobs:
             rm -f "$RUNNER_TEMP"/comprometida/comprometida_*
             echo "::warning::sem limites da terra já comprometida: o lote sai com sobreposição não verificada"
           fi
+      # Restrições nacionais (coletar-restricoes.yml): SIGMINE, autos do Ibama e Lista Suja. Com elas, a rodada refaz
+      # restricoes_<mun>.csv que falte ou esteja velho e o lote tira as exclusões; sem elas, fica "não verificada".
+      - name: Baixar as restrições nacionais (Release insumos)
+        run: |
+          mkdir -p "$RUNNER_TEMP/restricoes"
+          if gh release download insumos -R "$GITHUB_REPOSITORY" -D "$RUNNER_TEMP/restricoes" --clobber \
+               -p 'restricoes_*'; then
+            echo "restrições nacionais: $(find "$RUNNER_TEMP/restricoes" -maxdepth 1 -type f | wc -l) arquivos"
+          else
+            rm -f "$RUNNER_TEMP"/restricoes/restricoes_*
+            echo "::warning::sem restrições nacionais coletadas: o lote sai com restrições não verificadas"
+          fi
       - name: Atualizar índices e publicar consultas somente no arquivo privado
         env:
           RAIZ_COMPROMETIDA_DIR: ${{ runner.temp }}/comprometida
+          RAIZ_RESTRICOES_DIR: ${{ runner.temp }}/restricoes
           INPUT_UFS: ${{ inputs.ufs }}
           INPUT_BIOMA: ${{ inputs.bioma }}
           INPUT_BRASIL: ${{ inputs.brasil }}
