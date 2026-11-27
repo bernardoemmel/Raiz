@@ -1,13 +1,8 @@
 name: Calendário diário da Raíz
 
+# Agenda removida em 27/11/2026: o Firecrawl é API paga e o Bernardo não autoriza esse gasto.
+# Continua só manual, e sem a chave: a coleta usa o acesso direto e desiste quando a página exige o serviço pago.
 on:
-  push:
-    branches: [main]
-    paths:
-      - "raiz/calendario/**"
-      - ".github/workflows/calendario.yml"
-  schedule:
-    - cron: "11 9 * * *" # 06h11 em Brasília
   workflow_dispatch:
     inputs:
       fontes:
@@ -29,7 +24,6 @@ jobs:
     timeout-minutes: 60
     env:
       GH_TOKEN: ${{ github.token }}
-      FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
