@@ -33,7 +33,7 @@ from sqlalchemy import Connection, Engine, text
 
 from raiz import RAIZ_REPO
 from raiz.config import config
-from raiz.logs_seguros import sanitizar_estrutura, sanitizar_log
+from raiz.protecao.logs import sanitizar_estrutura, sanitizar_log
 
 log = logging.getLogger(__name__)
 

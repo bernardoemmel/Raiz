@@ -4,14 +4,14 @@ O Release aberto recebe somente a projeção `publico_basico` do #72, validada c
 antes do upload. O contrato básico consta de `docs/colunas.md` e `docs/dados-publicados.md`; arquivos completos,
 financeiros e de vigilância permanecem no destino privado autenticado. Uma falha bloqueia a projeção pública.
 
-`raiz/qualidade_dados.py` também verifica o contrato completo `colunas-2026-11-12`, transcrito de `docs/colunas.md`,
+`raiz/qualidade/dados.py` também verifica o contrato completo `colunas-2026-11-12`, transcrito de `docs/colunas.md`,
 para conferir medidas e apoiar a correção da origem. Esse validador não autoriza publicar as tabelas completas.
 O portão não remove fazendas, não recorta resultados e não troca valores por zero.
 
 Para conferir pacotes prontos, depois de juntar todas as partes `.partNN`, execute:
 
 ```sh
-uv run python -m raiz.qualidade_dados dados-entrada
+uv run python -m raiz.qualidade.dados dados-entrada
 ```
 
 O diretório deve conter o conjunto completo de arquivos candidatos, incluindo o pacote `imoveis` de referência

@@ -12,8 +12,8 @@ from pathlib import Path
 from jinja2 import FileSystemLoader, StrictUndefined, select_autoescape
 from jinja2.sandbox import SandboxedEnvironment
 
-from raiz.prospeccao_acesso import ErroAcesso
-from raiz.prospeccao_protecao import MarcaExportacao, validar_marca
+from raiz.prospeccao.acesso import ErroAcesso
+from raiz.prospeccao.protecao import MarcaExportacao, validar_marca
 
 from .esquema import Pasta
 from .validacao import validar

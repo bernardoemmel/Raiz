@@ -781,13 +781,13 @@ class ArmazemRelease:
         r = self.cli.post(f"{self.UPLOADS}/repos/{self.repo}/releases/{rel['id']}/assets", params={"name": nome},
                           headers={**h, "Content-Type": tipo}, content=dados)  # fmt: skip
         r.raise_for_status()
-        from raiz.atestacao import registrar
+        from raiz.publico.atestacao import registrar
 
         registrar(nome, dados, privado=self.privado)
 
     def _publicar_auxiliar(self, rel: dict, nome: str, dados: bytes, tipo: str) -> dict:
         """Publica artefato global e ficha; o chamador deve manter a trava do índice."""
-        from raiz.metadados import ficha_arquivo, validar
+        from raiz.publico.metadados import ficha_arquivo, validar
 
         self._exigir_privado()
         digest = sha256_bytes(dados)
@@ -1184,7 +1184,7 @@ class ArmazemRelease:
                 }
             aberto._gravar_indice({uf: entrada})
             if catalogar:
-                from raiz.catalogo_publico import catalogar_publico
+                from raiz.publico.catalogo import catalogar_publico
 
                 catalogar_publico(aberto, uf)
         if decisao is not None:
@@ -1240,7 +1240,7 @@ class ArmazemRelease:
         import datetime as dt
         import re
 
-        from raiz.metadados import croissant_uf, ficha_arquivo, validar
+        from raiz.publico.metadados import croissant_uf, ficha_arquivo, validar
 
         self._exigir_privado()
         rel = self._release()
@@ -1332,7 +1332,7 @@ class ArmazemRelease:
             info["processamento"] = est["processamento"]
         else:
             info.pop("processamento", None)
-        from raiz.quantis import quantis_uf
+        from raiz.medicao.quantis import quantis_uf
 
         quantis = quantis_uf(self.local.raiz / "saida" / u, u, vers)
         self._quantis[u] = quantis
@@ -1345,7 +1345,7 @@ class ArmazemRelease:
             "modelos": sorted(quantis["modelos"]),
             "diagnosticos": len(quantis["diagnosticos"]),
         }
-        from raiz.cadt import cadt_uf
+        from raiz.medicao.cadt import cadt_uf
 
         cadt = cadt_uf(self.local.raiz / "saida" / u, u,
                        data_inicio=os.environ.get("RAIZ_CADT_INICIO_CENARIO"), data_referencia=agora[:10],
@@ -1425,9 +1425,9 @@ class ArmazemRelease:
         import datetime as dt
 
         from raiz import RAIZ_REPO
-        from raiz.cadt import combinar_estados
-        from raiz.metadados import croissant_release, ficha_arquivo, validar
-        from raiz.quantis import combinar_tasks, esquema_modelos
+        from raiz.medicao.cadt import combinar_estados
+        from raiz.medicao.quantis import combinar_tasks, esquema_modelos
+        from raiz.publico.metadados import croissant_release, ficha_arquivo, validar
 
         agora = dt.datetime.now(dt.UTC).isoformat(timespec="seconds")
         for _ in range(3):

@@ -5,9 +5,9 @@ import logging
 
 import httpx
 
-from raiz import logs_seguros as L
 from raiz.operacao.healthchecks import Healthchecks
-from raiz.privacidade import FormatadorSeguro
+from raiz.protecao import logs as L
+from raiz.protecao.privacidade import FormatadorSeguro
 from testes.test_privacidade import CNPJ, CPF
 
 
@@ -75,7 +75,7 @@ def test_metadados_e_healthchecks_sanitizados():
 
 
 def _capturar_json_configurado(monkeypatch):
-    from raiz.privacidade import configurar_log
+    from raiz.protecao.privacidade import configurar_log
 
     arquivo = io.StringIO()
     handler = logging.StreamHandler(arquivo)
@@ -108,7 +108,7 @@ def test_log_reentrante_do_analisador_e_descartado_sem_ruido_ou_conteudo(monkeyp
     assert "<EMAIL_ADDRESS>" in dado["mensagem"]
     assert all(p not in linhas[0] for p in ("Pessoa Sintética", "contato@example.invalid", "indisponível"))
     # Configurar novamente não acumula filtros nem passa a ocultar registros normais.
-    from raiz.privacidade import configurar_log
+    from raiz.protecao.privacidade import configurar_log
 
     configurar_log()
     assert len(handler.filters) == 1
@@ -139,7 +139,7 @@ def test_falha_real_da_sanitizacao_permanece_visivel_sem_original(monkeypatch):
 def test_filtro_nao_descarta_registro_de_outra_thread(monkeypatch):
     from concurrent.futures import ThreadPoolExecutor
 
-    from raiz.privacidade import FiltroSanitizacao
+    from raiz.protecao.privacidade import FiltroSanitizacao
 
     monkeypatch.setattr(L._estado, "ativo", True, raising=False)
     filtro = FiltroSanitizacao()
@@ -152,7 +152,7 @@ def test_filtro_nao_descarta_registro_de_outra_thread(monkeypatch):
 def test_id_gerado_preserva_correlacao_sem_abrir_campo_a_texto_pessoal(monkeypatch):
     import json
 
-    from raiz.privacidade import FormatadorJSON
+    from raiz.protecao.privacidade import FormatadorJSON
 
     identificador = "abcdef0123456789" * 2
     monkeypatch.setattr(L, "sanitizar_log", lambda texto: "<PERSON>" if texto == identificador else texto)

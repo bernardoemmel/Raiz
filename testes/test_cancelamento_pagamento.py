@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 from sqlalchemy import create_engine, text
 
-from raiz import salvaguardas as SG
+from raiz.medicao import salvaguardas as SG
 from raiz.pedidos import servico as S
 from raiz.publica import conta as CT
 from raiz.publica import trabalhos as T

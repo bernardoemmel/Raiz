@@ -24,7 +24,7 @@ from pathlib import Path
 import yaml
 
 from raiz.modelos.base import Modelo, Pedido, Resposta
-from raiz.privacidade import mascarar
+from raiz.protecao.privacidade import mascarar
 
 BANCO = Path(__file__).with_name("banco.yaml")
 CAMPOS_EXPLICACAO = ("entendeu_area", "entendeu_prazo", "entendeu_pagamento", "desistiu")

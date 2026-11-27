@@ -88,8 +88,8 @@ def _ufs_privadas(armazem: Armazem, ufs: list[str] | None) -> list[str]:
 def carregar(engine, armazem: Armazem, ufs: list[str] | None = None, destino: Path | None = None,
              congelar: bool = True, reprocessar: bool = False) -> dict:  # fmt: skip
     """Sincroniza e leva ao banco cada município que mudou (a carga contínua compara a assinatura dos arquivos)."""
-    from raiz.carga_continua import varrer
-    from raiz.prospeccao_cobertura import reindexar
+    from raiz.carga.continua import varrer
+    from raiz.prospeccao.cobertura import reindexar
 
     destino = Path(destino or espelho_local())
     selecionadas = _ufs_privadas(armazem, ufs)

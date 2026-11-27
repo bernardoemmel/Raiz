@@ -4,8 +4,8 @@ import pytest
 from shapely.geometry import box
 from sqlalchemy import text
 
-from raiz import terra_comprometida as tc
-from raiz.ficha_prospeccao_dados import ficha
+from raiz.prospeccao.ficha import ficha
+from raiz.terra import comprometida as tc
 
 
 def reg(**kw):

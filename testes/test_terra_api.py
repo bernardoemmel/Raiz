@@ -23,9 +23,9 @@ def cliente(banco_url, tmp_path_factory):
     from pydantic import SecretStr
 
     import raiz.api as api_mod
-    from raiz import terra_publica as TP
     from raiz.api import criar_app
     from raiz.carga import carregar_municipio
+    from raiz.terra import publica as TP
 
     base = tmp_path_factory.mktemp("terra")
     pasta = base / "PA"

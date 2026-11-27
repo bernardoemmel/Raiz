@@ -18,7 +18,7 @@ FONTES_EXTRACAO = (
     "documentos/esquemas.py",
     "documentos/claude.py",
     "documentos/privacidade.py",
-    "privacidade.py",
+    "protecao/privacidade.py",
 )
 
 

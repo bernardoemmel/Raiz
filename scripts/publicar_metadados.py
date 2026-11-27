@@ -365,8 +365,8 @@ def resposta_de_cota(resposta) -> bool:
 
 
 def classe_armazem(prazo: float | None = None):
-    from raiz.atestacao import registrar
     from raiz.executor.armazem import ArmazemRelease
+    from raiz.publico.atestacao import registrar
 
     prazo = prazo if prazo is not None else time.monotonic() + 280 * 60
     espera_total = [0.0]
@@ -515,10 +515,10 @@ def arquivos_produto(armazem) -> list[dict]:
 
 def catalogar_lotes(armazem, pasta: Path) -> list[dict]:
     """Produtos finais imutáveis: só publica derivados, sob a trava global do chamador."""
-    from raiz import lote_publicado as lote
-    from raiz import metadados
-    from raiz.atestacao import registrar
-    from raiz.metadados_lote import croissant_tar_csv
+    from raiz.lote import publicado as lote
+    from raiz.lote.metadados import croissant_tar_csv
+    from raiz.publico import metadados
+    from raiz.publico.atestacao import registrar
 
     if not armazem.privado:
         raise PermissionError("produtos completos do lote exigem arquivo privado")
@@ -624,7 +624,7 @@ def checksums(*, privado: bool = False) -> dict[str, str]:
 
 def conferir_arquivo(armazem, asset: dict, indice: dict) -> str:
     """Confere ficha e bytes sob a trava apropriada; retorna o digest verificado."""
-    from raiz.atestacao import identificador
+    from raiz.publico.atestacao import identificador
 
     nome = asset["name"]
     digest_api = (asset.get("digest") or "").removeprefix("sha256:").lower()
@@ -747,8 +747,8 @@ def publicar(
         raise ValueError("o limite deve ficar entre zero e 300 minutos, com margem para atestar")
     inicio = time.monotonic()
     fim = inicio + limite_minutos * 60
-    from raiz.catalogo_publico import catalogar_publico
     from raiz.executor.armazem import destino_privado
+    from raiz.publico.catalogo import catalogar_publico
 
     repo = os.environ["GITHUB_REPOSITORY"]
     destino = destino_privado()

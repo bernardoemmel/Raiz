@@ -73,7 +73,7 @@ def atualizar(
 def atualizar_do_espelho(engine: Engine, espelho, uf: str, cods: list[int], agora: dt.datetime | None = None) -> dict:
     """Lê do espelho os arquivos que mudaram desde a última leitura e atualiza o manifesto. Devolve
     {camada: blocos que mudaram}."""
-    from raiz.versoes import sha256_arquivo
+    from raiz.medicao.versoes import sha256_arquivo
 
     agora = agora or dt.datetime.now(dt.UTC)
     out: dict[str, set[str]] = defaultdict(set)

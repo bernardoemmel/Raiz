@@ -360,7 +360,7 @@ def test_ficha_corresponde_ao_pacote_e_catalogo_preserva_outros_estados(gh, tmp_
 
 
 def test_falha_na_ficha_nao_publica_pacote_parcial(gh, tmp_path, monkeypatch):
-    from raiz import metadados
+    from raiz.publico import metadados
 
     def falhar(*args, **kwargs):
         raise ValueError("ficha inválida")

@@ -10,7 +10,7 @@ Entregas #82 e #95 integradas; rodada 12 em #99. Formatos do Lote PA em validaç
 |---|---|---|
 | #21 | `.github/workflows/processar-estados.yml`: o motor roda sozinho no GitHub Actions e publica no Release `dados`. Estão nele o orquestrador `motor/rodar_estado.py` (planejar, preparar, `--executor`, continuar), `motor/raiz_situacao.py`, `motor/painel.py`, `publicar_dados.py --subir` com trava, e o executor (`raiz/executor/`) pronto para o Actions | mesclado (o fundador fez o merge) |
 | #30 | Até 18 jobs, estados grandes em fatias por longitude (62 unidades), duas filas (novo antes de manutenção, manutenção até 4), trava por estado na publicação, `motor.fatias` no `estados.json` | mesclado |
-| #38 | Situação de E1 e E2 no `docs/plano-por-etapa.md`; versão nomeada das regras (`regras-2026b+hash`) em cada previsão (`raiz/versoes.py`, `raiz/carga.py`); manifesto com os 4 produtos do YbYrá e os subtemas da API do MapBiomas | mesclado |
+| #38 | Situação de E1 e E2 no `docs/plano-por-etapa.md`; versão nomeada das regras (`regras-2026b+hash`) em cada previsão (`raiz/medicao/versoes.py`, `raiz/carga.py`); manifesto com os 4 produtos do YbYrá e os subtemas da API do MapBiomas | mesclado |
 | #43 | Limite padrão de 15 jobs de processamento (5 máquinas livres para CI e site), mais esta passagem | mesclado em 12/11, 13h30 de Brasília; CI de push e PR verdes |
 | #46 | Teto global de 15, reserva atômica, fila persistente de pedidos e continuações, consulta paginada e bloqueio de admissão se a API falhar | mesclado; os três checks do run `43281492727` passaram |
 | #77 | Itens 2–7: Croissant 1.1/schema.org, quantis hubverse, cartão, actions/attest e cronogramas CAD Trust; publicação sob as travas do estado e do índice | mesclado em `b624b108`; CI do PR `43304760101` verde, 1.859 testes; CI de push `43308323363` também verde |
@@ -98,7 +98,7 @@ comparar escopo/versões, incluindo os erros e o tempo efetivo após a correçã
 1. **Fechar o #43 — feito.** Merge e os dois CIs conferidos. O complemento da retomada torna 15 um teto global,
    inclusive com pedidos simultâneos, e preserva na fila os pedidos que ainda não cabem. Não cancelar os jobs.
 2. **Croissant — feito no código.**
-   - Criar `raiz/metadados.py` com `croissant_uf(pasta, uf, entrada)`. Ele roda o `croissant-baker` (0.8.3, MIT) na
+   - Criar `raiz/publico/metadados.py` com `croissant_uf(pasta, uf, entrada)`. Ele roda o `croissant-baker` (0.8.3, MIT) na
      pasta do espelho do estado (`dados/armazem_local/saida/<UF>/`) e troca a `distribution` por um `FileObject` do
      `raiz_<UF>.tar.gz` (url do Release, sha256), mais `FileSet` por tabela (`<UF>/imoveis_*.csv`, `filtros_*`, ...)
      com `containedIn`.
@@ -117,7 +117,7 @@ comparar escopo/versões, incluindo os erros e o tempo efetivo após a correçã
    - Gravar em `quantis_<UF>.parquet` junto do pacote, mais a configuração do hub (`tasks.json`) e os metadados do
      modelo, com `model_version`.
    - Antes, conferir os nomes exatos das colunas P10/P50/P90 em `dados/amostra/desenvolvedor_1504950.csv` e em
-     `raiz/flag.py`.
+     `raiz/medicao/flag.py`.
 5. **Cartão do modelo — feito no código.** `docs/modelo/cartao.md` (formato de Mitchell et al.): o funil (motor), o valor para
    quem restaura, FLAG e caminho da terra; uso pretendido, dados, métricas, limites, versões. Publicar no Release como
    `cartao_modelo.md`.
@@ -768,7 +768,7 @@ Nenhum job foi cancelado e nenhum cron foi criado. Um único PR junta as mudanç
    execução" (PB 49, SP 45, MT 28, ES 16, RJ 16, MS 15, PA 11). Causa: no primeiro funil de um município a marca
    não tem a caixa; a assinatura dos alertas usa o arquivo do estado inteiro; ao terminar, a caixa é gravada e a
    conferência final recalcula só com os alertas da caixa. Todo município novo virava erro e rodava o funil de
-   novo. Os demais: ficha com GEOSException 11 (desenho dos ladrilhos, `raiz/tiles.py:59`), direto
+   novo. Os demais: ficha com GEOSException 11 (desenho dos ladrilhos, `raiz/mapa/tiles.py:59`), direto
    RasterioIOError 9, funil CPLE_AppDefinedError 8, publicação pendente 4.
 
 **Consertos (PR desta retomada; versões científicas das 11 tarefas conferidas iguais, nada pronto é refeito)**
@@ -791,7 +791,7 @@ Nenhum job foi cancelado e nenhum cron foi criado. Um único PR junta as mudanç
 
 **Pendências conhecidas**
 
-- Ficha com GEOSException em ~1% dos municípios (GO e PA): consertar `raiz/tiles.py` muda a versão da ficha e
+- Ficha com GEOSException em ~1% dos municípios (GO e PA): consertar `raiz/mapa/tiles.py` muda a versão da ficha e
   refaria todas as fichas do Brasil. Decidir junto com a próxima mudança científica da ficha.
 - Quedas do runner em BA: medir depois das 2 lanes; se continuar, considerar 1 lane só em BA.
 - O Release `dados-privados-checkpoints` está com ~800 arquivos; o alívio do planejar move os antigos acima de 800.

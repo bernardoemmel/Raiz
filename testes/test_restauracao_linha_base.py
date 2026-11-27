@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from raiz import restauracao_linha_base as B
+from raiz.restauracao import controle_sintetico as B
 
 
 def pixels():

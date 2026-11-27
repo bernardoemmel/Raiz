@@ -293,9 +293,10 @@ def prever(retrato: Retrato, modelos: tuple[str, ...] = ("motor", "flag", "resta
     MapBiomas e parâmetros geográficos; não troca falta de histórico por zero.
     Restauração não carrega a calibração nem a PTAX de hoje.
     """
-    from raiz import flag, rebanho, restauracao
+    from raiz import restauracao
+    from raiz.medicao import flag, rebanho
+    from raiz.medicao.versoes import motor_versao
     from raiz.titulo import regularizacao, triagem
-    from raiz.versoes import motor_versao
 
     fontes_dos_modelos(modelos)
     out = {}
@@ -308,7 +309,7 @@ def prever(retrato: Retrato, modelos: tuple[str, ...] = ("motor", "flag", "resta
             ps.append(Previsao(li["cod_imovel"], "flag_tco2_ano", 365, valor_num=a["flag_tco2_ano"]))
         out["flag"] = (ps, flag.versao())
     if "restauracao" in modelos:
-        from raiz.restauracao_aprendizado import ALVO_MODO, ALVOS
+        from raiz.restauracao.aprendizado import ALVO_MODO, ALVOS
 
         ps = []
         with tempfile.TemporaryDirectory(prefix="raiz-fold-regra-") as pasta:
@@ -410,8 +411,9 @@ def reexecutar(
     congelar: bool = True,
 ) -> list[dict]:
     """Lotes separados por modelo e fold, idempotentes e imutáveis no registro E8."""
-    from raiz import flag, rebanho, restauracao
+    from raiz import restauracao
     from raiz.aprendizado import captura
+    from raiz.medicao import flag, rebanho
     from raiz.titulo import regularizacao, triagem
 
     fontes_dos_modelos(modelos)

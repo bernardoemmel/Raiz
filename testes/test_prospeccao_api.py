@@ -7,7 +7,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from raiz import prospeccao_api as api
+from raiz.prospeccao import api
 
 CAR = "PA-1504950-" + "A" * 32
 

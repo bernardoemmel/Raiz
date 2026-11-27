@@ -10,11 +10,11 @@ import pandas as pd
 import pytest
 import shapely
 
-from raiz import restauracao_catalogo as C
-from raiz import restauracao_nacional as N
-from raiz import restauracao_selecao as S
 from raiz import terra as T
 from raiz.pedidos.campos import CamposPedido
+from raiz.restauracao import catalogo as C
+from raiz.restauracao import nacional as N
+from raiz.restauracao import selecao as S
 from raiz.triagem_desenvolvedor import nota as TN
 from testes.test_restauracao_catalogo import criar_fonte, indexar
 

@@ -19,7 +19,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from raiz.privacidade import remover_colunas_pessoais
+from raiz.protecao.privacidade import remover_colunas_pessoais
 
 TEXTO, NUM, INT, BOOL, DATA_HORA = "texto", "num", "int", "bool", "data_hora"
 
@@ -138,8 +138,8 @@ CERTIDOES: dict[str, str] = {
 
 # arquivos sem contrato tipado ainda: tudo vai para atributos, uma linha por imóvel
 # (extras = histórico fixo exportado uma vez do Earth Engine; extras_direto = TMF e causa da perda, sem Earth Engine;
-#  flag = meta FLAG pela GHG LSR, calculada pelo produto em raiz/flag.py; ficha = colunas do design v1 do front,
-#  raiz/imovel_dados.py; desenvolvedor = valor para quem restaura com crédito de carbono, raiz/restauracao.py;
+#  flag = meta FLAG pela GHG LSR, calculada pelo produto em raiz/medicao/flag.py; ficha = colunas do design v1 do front,
+#  raiz/leitura/imovel.py; desenvolvedor = valor para quem restaura com crédito de carbono, raiz/restauracao.py;
 #  terra = caminho da terra e risco, raiz/terra.py; restricoes = SICAR completo, SIGMINE, autos do Ibama e Lista
 #  Suja, raiz/restricoes/status.py; estaduais = embargos, autos, UCs, restauração/PSA já registrados, terras
 #  devolutas e bloqueios de matrícula dos Estados, raiz/estaduais/cruzamento.py; ambiental = reserva legal pela

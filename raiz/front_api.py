@@ -14,8 +14,9 @@ As leituras textuais também aceitam ``Accept: text/markdown``. O JSON continua 
 usam os mesmos dados já limpos e a mesma autenticação, e respondem com ``Vary: Accept``.
 
 Privacidade: coluna com cara de dado pessoal não sai, e todo texto passa pela máscara de CPF/CNPJ (a mesma de
-raiz/privacidade.py). A ficha segue as regras do funil do front (front/compartilhado/dados/funil.ts), que são as do
-motor: apta = sem problema, área de carbono > 0 e até 5 ha desmatados depois de 2016.
+raiz/protecao/privacidade.py). A ficha segue as regras do funil do front
+(front/compartilhado/dados/funil.ts), que são as do motor: apta = sem problema, área de carbono > 0
+e até 5 ha desmatados depois de 2016.
 """
 
 from __future__ import annotations
@@ -34,15 +35,15 @@ from fastapi.responses import FileResponse, Response
 from sqlalchemy import Engine, text
 
 from raiz import contrato
-from raiz import flag as flag_mod
-from raiz import localizacao as localizacao_mod
-from raiz import markdown as markdown_mod
-from raiz import motivos as motivos_mod
 from raiz import restauracao as restauracao_mod
 from raiz import terra as terra_mod
-from raiz import terra_publica as terra_publica_mod
-from raiz.busca import normalizar_codigo, normalizar_nome
-from raiz.privacidade import colunas_pessoais, mascarar
+from raiz.contato import localizacao as localizacao_mod
+from raiz.leitura import markdown as markdown_mod
+from raiz.leitura import motivos as motivos_mod
+from raiz.leitura.busca import normalizar_codigo, normalizar_nome
+from raiz.medicao import flag as flag_mod
+from raiz.protecao.privacidade import colunas_pessoais, mascarar
+from raiz.terra import publica as terra_publica_mod
 
 log = logging.getLogger(__name__)
 
@@ -260,7 +261,7 @@ def nao_achado(engine: Engine, cod_imovel: str) -> dict:
     return out
 
 
-# --- regras do funil do front (front/compartilhado/dados/funil.ts), em raiz/motivos.py ---------------------------
+# --- regras do funil do front (front/compartilhado/dados/funil.ts), em raiz/leitura/motivos.py ---
 
 
 def ler_imovel(linha: dict) -> dict:
@@ -394,7 +395,7 @@ def montar_ficha(
 
 def capa_da_ficha(cod_imovel: str) -> dict | None:
     """A foto de capa (satélite com o contorno) se já existe em cache; a ficha nunca espera o satélite."""
-    from raiz import satelite
+    from raiz.mapa import satelite
 
     try:
         return satelite.capa(normalizar_codigo(cod_imovel))
@@ -591,7 +592,7 @@ def _imagem(engine: Engine, cod_imovel: str, tipo: str, *, ler=None) -> tuple[di
 
     import shapely
 
-    from raiz import satelite
+    from raiz.mapa import satelite
 
     if tipo not in satelite.TIPOS:
         raise HTTPException(404, f"imagem desconhecida: {tipo} (há {', '.join(satelite.TIPOS)})")
@@ -671,7 +672,7 @@ def roteador(engine_de) -> APIRouter:
     def municipio(cod_ibge: int, request: Request) -> Response:
         """Frase-resumo, funil por etapa e por porte com os maiores motivos de saída, desde a última análise e área
         urbana da sede (design v1 do front, item 4)."""
-        from raiz import municipio_dados
+        from raiz.leitura import municipio as municipio_dados
 
         d = municipio_dados.dados(engine_de(request), cod_ibge)
         if d is None:
@@ -774,7 +775,7 @@ def roteador(engine_de) -> APIRouter:
     @r.post("/imoveis/{cod_imovel}/restauracao/real")
     async def restauracao_real(cod_imovel: str, request: Request) -> Response:
         """O cliente informa custo e captura reais: vira gabarito para comparar com o que a Raíz previu."""
-        from raiz import restauracao_aprendizado as RA
+        from raiz.restauracao import aprendizado as RA
 
         eng = engine_de(request)
         alvo = imoveis_do_municipio(eng, cod_imovel=cod_imovel)
@@ -925,7 +926,7 @@ def roteador(engine_de) -> APIRouter:
     @r.get("/mapa/manifesto.json")
     def mapa_manifesto() -> Response:
         """Qual recorte do Protomaps está no ar (build, tamanho, zoom, crédito)."""
-        from raiz import mapa_base
+        from raiz.mapa import base as mapa_base
 
         m = mapa_base.manifesto()
         if not m:
@@ -935,7 +936,7 @@ def roteador(engine_de) -> APIRouter:
     @r.get("/mapa/brasil.pmtiles")
     def mapa_brasil() -> Response:
         """Mapa base do Brasil até o zoom 14, com Range (o leitor do PMTiles pede por faixa de bytes)."""
-        from raiz import mapa_base
+        from raiz.mapa import base as mapa_base
 
         f = mapa_base.arquivo_atual()
         if f is None:
@@ -944,7 +945,7 @@ def roteador(engine_de) -> APIRouter:
 
     @r.get("/mapa/fontes/{fonte}/{faixa}.pbf")
     def mapa_fonte(fonte: str, faixa: str) -> Response:
-        from raiz import mapa_base
+        from raiz.mapa import base as mapa_base
 
         if fonte not in mapa_base.FONTES or not re.fullmatch(r"\d+-\d+", faixa):
             raise HTTPException(404, "fonte ou faixa desconhecida")
@@ -955,7 +956,7 @@ def roteador(engine_de) -> APIRouter:
 
     @r.get("/mapa/sprites/{nome}.{ext}")
     def mapa_sprite(nome: str, ext: str) -> Response:
-        from raiz import mapa_base
+        from raiz.mapa import base as mapa_base
 
         base = nome.removesuffix("@2x")
         if base not in mapa_base.SPRITES or ext not in ("json", "png"):
@@ -967,7 +968,7 @@ def roteador(engine_de) -> APIRouter:
 
     @r.get("/geo/{cod_ibge}/base.pmtiles")
     def base(cod_ibge: int) -> Response:
-        from raiz.geo import arquivo_base
+        from raiz.mapa.geo import arquivo_base
 
         f = arquivo_base(cod_ibge)
         if f is None:

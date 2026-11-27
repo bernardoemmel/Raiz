@@ -12,10 +12,9 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 
-from raiz import prospeccao_acesso as acesso
-from raiz import prospeccao_webhook as webhook
 from raiz.pedidos import pix
 from raiz.pedidos.servico import criar_cliente
+from raiz.prospeccao import acesso, webhook
 
 SEGREDO = "segredo-local-so-para-testes-de-assinatura"
 CHAVE_PUBLICA = "chave-publica-local-de-teste"

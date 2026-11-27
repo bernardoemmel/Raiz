@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 
-from raiz import restauracao_divida as D
-from raiz import restauracao_financeiro as F
+from raiz.restauracao import endividamento as D
+from raiz.restauracao import financeiro as F
 
 
 def test_aluguel_reproduz_censo_corrigido_sem_chamar_preco_de_mercado():

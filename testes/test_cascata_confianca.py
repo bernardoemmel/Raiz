@@ -155,7 +155,7 @@ def test_banco_proprio_em_portugues():
     t = next(t for t in ts if t.tarefa == "aceite.explicacao")
     assert AV.pedido(t).sistema == aceite.sistema_explicacao(t.proposta)
     assert {x.tarefa for x in ts} == {"aceite.intencao", "aceite.explicacao"}
-    from raiz.privacidade import mascarar
+    from raiz.protecao.privacidade import mascarar
 
     assert all(mascarar(x.mensagem) == x.mensagem for x in ts)  # nenhum CPF ou CNPJ
 

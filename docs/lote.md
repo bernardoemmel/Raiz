@@ -2,7 +2,7 @@
 
 O que o Bot Agro montava na mão para Paragominas em 17/11/2026 (4 lotes, 17 imóveis, cerca de 13 mil ha) agora sai
 automático: `raiz dossie lote --municipio <IBGE>` lê o que o processamento já calculou, aplica os filtros abaixo e
-grava o dossiê em Markdown, PDF, Word e JSON. Código: `raiz/dossie_lote.py`. Regras e limiares:
+grava o dossiê em Markdown, PDF, Word e JSON. Código: `raiz/lote/dossie.py`. Regras e limiares:
 `raiz/regras/padroes/dossie_lote.yaml` (a versão vai gravada no dossiê).
 
 O dossiê **não muda a ciência do funil**: não recalcula floresta, restauração, terra nem previsões. Só filtra, agrupa

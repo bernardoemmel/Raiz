@@ -25,7 +25,7 @@ import sys
 from pathlib import Path
 
 from raiz.documentos.privacidade import configurar_log
-from raiz.logs_seguros import sanitizar_log
+from raiz.protecao.logs import sanitizar_log
 
 log = logging.getLogger("raiz.documentos")
 

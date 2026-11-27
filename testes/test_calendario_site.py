@@ -20,10 +20,10 @@ def site(tmp_path):
         "front/scripts/baixar-calendario.mjs",
         "front/compartilhado/calendario-fontes.json",
         "raiz/__init__.py",
-        "raiz/privacidade.py",
+        "raiz/protecao/privacidade.py",
         "raiz/calendario/__init__.py",
         "raiz/calendario/feed.py",
-        "raiz/qualidade_calendario.py",
+        "raiz/qualidade/calendario.py",
     ):
         destino = tmp_path / relativo
         destino.parent.mkdir(parents=True, exist_ok=True)

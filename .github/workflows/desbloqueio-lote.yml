@@ -51,5 +51,5 @@ jobs:
           MANIFESTO: ${{ inputs.manifesto }}
           MANIFESTO_SHA256: ${{ inputs.sha256 }}
         run: >-
-          uv run python -m raiz.restauracao_complementos
+          uv run python -m raiz.restauracao.complementos
           --manifesto "$MANIFESTO" --sha256 "$MANIFESTO_SHA256" --destino complemento

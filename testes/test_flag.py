@@ -10,7 +10,7 @@ import yaml
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from raiz import flag as F
+from raiz.medicao import flag as F
 from testes.conftest import AMOSTRA
 
 

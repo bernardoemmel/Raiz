@@ -410,7 +410,7 @@ def avaliar(linha: dict, r: dict | None = None) -> tuple[dict, list[Achado]]:
 def _ler_csv(f: Path):
     import pandas as pd
 
-    from raiz.privacidade import remover_colunas_pessoais
+    from raiz.protecao.privacidade import remover_colunas_pessoais
 
     df, _ = remover_colunas_pessoais(pd.read_csv(f, low_memory=False))
     if "cod_imovel" in df.columns:

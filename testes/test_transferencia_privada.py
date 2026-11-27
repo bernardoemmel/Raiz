@@ -136,7 +136,7 @@ def test_motor_cache_privado_e_guard_impedem_ref_legada_de_rodar():
 
 @pytest.mark.parametrize("operacao", ["baixar", "preparar", "enviar", "timeout"])
 def test_erro_remoto_privado_nao_revela_url_assinada_em_traceback_ou_log(tmp_path, monkeypatch, caplog, operacao):
-    from raiz import restauracao_rodada as RR
+    from raiz.restauracao import rodada as RR
 
     gh = GitHubFalso()
     gh.assets["raiz_PA.tar.gz"] = b"dados completos"

@@ -1,4 +1,4 @@
-from raiz.licencas import Pacote, avaliar, classificar, falhas
+from raiz.protecao.licencas import Pacote, avaliar, classificar, falhas
 
 
 def test_classifica_proibidas():
@@ -86,7 +86,7 @@ def test_registro_nao_libera_proibida_nem_gpl_distribuida():
 def test_npm_lock_inclui_pacote_aninhado_proibido(tmp_path):
     import json
 
-    from raiz.licencas import pacotes_npm
+    from raiz.protecao.licencas import pacotes_npm
 
     lock = tmp_path / "package-lock.json"
     lock.write_text(
@@ -109,7 +109,7 @@ def test_npm_lock_inclui_pacote_aninhado_proibido(tmp_path):
 def test_npm_falha_se_inventario_nao_pode_ser_conferido(tmp_path):
     import pytest
 
-    from raiz.licencas import pacotes_npm
+    from raiz.protecao.licencas import pacotes_npm
 
     lock = tmp_path / "package-lock.json"
     with pytest.raises(FileNotFoundError):
@@ -131,7 +131,7 @@ def test_cargo_falha_se_ferramenta_ausente_ou_com_erro(tmp_path, monkeypatch):
 
     import pytest
 
-    from raiz.licencas import pacotes_cargo
+    from raiz.protecao.licencas import pacotes_cargo
 
     manifesto = tmp_path / "Cargo.toml"
     manifesto.write_text('[package]\nname = "app"\n')
@@ -149,7 +149,7 @@ def test_cargo_usa_lock_e_nao_ignora_dependencia_local(tmp_path, monkeypatch):
     import shutil
     import subprocess
 
-    from raiz.licencas import pacotes_cargo
+    from raiz.protecao.licencas import pacotes_cargo
 
     manifesto = tmp_path / "Cargo.toml"
     manifesto.write_text('[package]\nname = "raiz_iov"\n')

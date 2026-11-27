@@ -10,7 +10,7 @@ from pathlib import Path
 import geopandas as gpd
 import shapely
 
-from raiz import dossie_lote as D
+from raiz.lote import dossie as D
 
 # um grau ~ 111 km; caixas pequenas perto de Paragominas
 X0, Y0 = -47.5, -3.0

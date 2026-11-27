@@ -4,7 +4,7 @@ import pytest
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
-from raiz.seguranca_api import SegurancaAPI
+from raiz.protecao.api import SegurancaAPI
 
 
 def app_teste(**opcoes):
@@ -44,7 +44,7 @@ def test_cabecalhos_inclusive_erros(caminho, status):
 
 def test_limite_ignora_cabecalho_falso_e_retorna_retry_after(monkeypatch):
     agora = 100.0
-    monkeypatch.setattr("raiz.seguranca_api.time.monotonic", lambda: agora)
+    monkeypatch.setattr("raiz.protecao.api.time.monotonic", lambda: agora)
     cliente = TestClient(app_teste(limite=2))
     assert cliente.get("/ok").status_code == 200
     assert cliente.get("/ok", headers={"X-Forwarded-For": "192.0.2.1"}).status_code == 200
@@ -85,7 +85,7 @@ def test_cors_inclui_limite_erro_e_preflight_com_cabecalhos_seguros():
 
 def test_memoria_limitada_nao_expulsa_cliente_ativo_para_liberar_abuso(monkeypatch):
     agora = 100.0
-    monkeypatch.setattr("raiz.seguranca_api.time.monotonic", lambda: agora)
+    monkeypatch.setattr("raiz.protecao.api.time.monotonic", lambda: agora)
     middleware = SegurancaAPI(None, limite=1, max_clientes=2)
     assert middleware._espera("192.0.2.1", False) == 0
     assert middleware._espera("192.0.2.2", False) == 0

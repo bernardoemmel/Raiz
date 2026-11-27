@@ -26,7 +26,7 @@ from sqlalchemy import Connection
 from raiz.coleta.espelho import Diferenca, Espelho, registrar_alertas
 from raiz.coleta.manifesto import UFS, carregar
 from raiz.coleta.replicacao import atualizar, estado, evento
-from raiz.privacidade import mascarar, remover_colunas_pessoais
+from raiz.protecao.privacidade import mascarar, remover_colunas_pessoais
 
 FONTE = "ibama_embargos"
 RECORTE = "BR"

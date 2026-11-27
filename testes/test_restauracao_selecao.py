@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from raiz import restauracao_selecao as S
 from raiz.pedidos.campos import CamposPedido
+from raiz.restauracao import selecao as S
 
 
 def pedido(valor=100, **forma):

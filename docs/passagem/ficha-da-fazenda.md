@@ -187,7 +187,7 @@ v1 existente exige conferência de compatibilidade da conta antes da ativação.
 ## Ficha, comparação, PDF e buscas salvas
 
 A ficha continua um DTO fechado de dados da terra em
-`raiz/ficha_prospeccao_dados.py`: fonte, unidade, data de referência, data de corte
+`raiz/prospeccao/ficha.py`: fonte, unidade, data de referência, data de corte
 e indicação de estimativa em cada medida. Ausência permanece `null`; data de
 carga não substitui data da fonte. Nunca nome, CPF ou contato do dono.
 
@@ -258,7 +258,7 @@ O MCP oficial registra `consultar_ficha`, com OAuth e escopo `consultar`, e usa 
 ponte existente para `GET /v1/fazendas/{CAR}/ficha`. Conta empresarial, sinal,
 contrato, limites e auditoria do host continuam obrigatórios.
 
-`raiz.prospeccao_servico.consultar_ficha(engine, cliente_id, codigo_car)` devolve o
+`raiz.prospeccao.servico.consultar_ficha(engine, cliente_id, codigo_car)` devolve o
 mesmo DTO fechado usado pela rota HTTP. A identidade vem de autenticação, nunca
 do corpo da ferramenta. O parâmetro opcional `desbloquear=True` pertence ao fluxo
 explícito de compra da interface humana; a ferramenta só lê ficha já liberada.
@@ -269,7 +269,7 @@ CAR pela própria conta, devolve 402. A análise corporativa de R$ 1.500 permane
 produto separado. REST e MCP preservam fontes, datas, `null`, cache privado,
 exposição para controle de raspagem e limites compartilhados com a prospecção.
 
-O adaptador Python `raiz.prospeccao_mcp` permanece disponível para hosts internos
+O adaptador Python `raiz.prospeccao.mcp` permanece disponível para hosts internos
 que forneçam contexto OAuth e autorização corporativa; não abre servidor alternativo.
 Comparação de fichas continua na API autenticada da prospecção; somente
 `consultar_ficha` foi acrescentada ao catálogo MCP corporativo nesta integração.

@@ -75,7 +75,7 @@ def quadros(dados: dict) -> dict[str, pd.DataFrame]:
 
 def _privacidade(dados: dict) -> None:
     """Coluna pública não torna um valor pessoal publicável; geometria já é canônica."""
-    from raiz.qualidade_dados import ErroQualidade, validar_json
+    from raiz.qualidade.dados import ErroQualidade, validar_json
 
     try:
         for linhas in dados.values():

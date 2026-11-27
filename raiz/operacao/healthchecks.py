@@ -13,7 +13,7 @@ import logging
 import httpx
 
 from raiz.config import config
-from raiz.logs_seguros import sanitizar_log
+from raiz.protecao.logs import sanitizar_log
 
 log = logging.getLogger(__name__)
 LIMITE_LOG = 10_000  # o Healthchecks guarda até 100 kB por ping; o fim do log é o que importa

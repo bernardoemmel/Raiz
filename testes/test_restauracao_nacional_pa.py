@@ -4,7 +4,7 @@ import json
 import pytest
 
 from raiz import restauracao as R
-from raiz import restauracao_nacional_pa as P
+from raiz.restauracao import nacional_pa as P
 
 
 class Arquivo:

@@ -6,10 +6,10 @@ import pandas as pd
 import pytest
 
 from raiz import restauracao as R
-from raiz import restauracao_catalogo as C
-from raiz import restauracao_nacional as N
-from raiz import restauracao_selecao as S
 from raiz.pedidos.campos import CamposPedido
+from raiz.restauracao import catalogo as C
+from raiz.restauracao import nacional as N
+from raiz.restauracao import selecao as S
 from testes.test_restauracao_catalogo import criar_fonte, indexar
 
 
@@ -263,8 +263,8 @@ def test_rodada_completa_comprometida_que_falta_e_refaz_a_velha(tmp_path, monkey
     import geopandas as gpd
     from shapely.geometry import box
 
-    from raiz import restauracao_nacional_rodada as RN
     from raiz.comprometida import status as ST
+    from raiz.restauracao import nacional_rodada as RN
 
     fonte = tmp_path / "PA"
     criar_fonte(fonte, n=2)

@@ -1,4 +1,4 @@
-"""Medidor de legibilidade (raiz/legibilidade.py): contagem do ALT, as três versões do Flesch e a preparação do
+"""Medidor de legibilidade (raiz/contato/legibilidade.py): contagem do ALT, as três versões do Flesch e a preparação do
 texto (números, datas e reais por extenso). As contagens esperadas foram feitas à mão, seguindo as regras do ALT."""
 
 import json
@@ -6,8 +6,8 @@ import json
 import pytest
 from typer.testing import CliRunner
 
-from raiz import legibilidade as L
 from raiz.agentes import textos
+from raiz.contato import legibilidade as L
 
 
 @pytest.mark.parametrize(

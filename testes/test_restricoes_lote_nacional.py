@@ -3,10 +3,10 @@ resumo agregado e rodada que completa restricoes_<mun>.csv. Só dados sintético
 
 import pandas as pd
 
-from raiz import restauracao_catalogo as C
-from raiz import restauracao_nacional as N
-from raiz import restauracao_selecao as S
 from raiz.pedidos.campos import CamposPedido
+from raiz.restauracao import catalogo as C
+from raiz.restauracao import nacional as N
+from raiz.restauracao import selecao as S
 from testes.test_restauracao_catalogo import criar_fonte, indexar
 
 
@@ -74,7 +74,7 @@ def test_exclusao_sai_ressalva_fica_marcada_e_resumo_so_agrega(tmp_path):
     d = pd.read_parquet(r["auditoria"]["caminho"]).set_index("cod_imovel")
     assert "Restrição nacional" in d.loc[ids[0], "criterio_texto"]
 
-    from raiz.restauracao_nacional_rodada import resumo_consulta
+    from raiz.restauracao.nacional_rodada import resumo_consulta
 
     assert resumo_consulta(r)["restricoes_nacionais"]["excluidas"] == 1
 
@@ -93,7 +93,7 @@ def test_rodada_completa_restricoes_que_faltam_e_refaz_as_velhas(tmp_path, monke
     import geopandas as gpd
     from shapely.geometry import box
 
-    from raiz import restauracao_nacional_rodada as RN
+    from raiz.restauracao import nacional_rodada as RN
     from raiz.restricoes import status as RS
 
     fonte = tmp_path / "PA"

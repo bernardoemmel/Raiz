@@ -7,7 +7,7 @@ import pytest
 import shapely
 from shapely.geometry import box
 
-from raiz.potencial_publico import Entradas, agregar, detectar_sobreposicoes, ler_privado
+from raiz.publico.potencial import Entradas, agregar, detectar_sobreposicoes, ler_privado
 
 
 def entrada(n=6):
@@ -150,7 +150,7 @@ def test_prefixo_car_diferente_do_pacote_nao_duplica_ou_exclui_contribuicao():
 def test_publicacao_concorrente_repete_apenas_par_sem_duplicar_medidas(monkeypatch):
     import hashlib
 
-    from raiz import potencial_publico as p
+    from raiz.publico import potencial as p
 
     dados = b"pacote-ficticio"
     digest = "sha256:" + hashlib.sha256(dados).hexdigest()
@@ -194,7 +194,7 @@ def test_area_muito_pequena_nao_arredonda_para_zero():
 
 
 def test_uf_que_muda_em_todas_as_leituras_fica_de_fora_sem_derrubar_o_site(monkeypatch):
-    from raiz import potencial_publico as p
+    from raiz.publico import potencial as p
 
     arm = Mock()
     arm._assets.return_value = [

@@ -288,13 +288,13 @@ Sessão: https://claude.ai/code/session_01VGb88MJumyG9PHt2znaaKE. Branch: `claud
 - PR #18: dados de todos os estados e pedido de lote (merge).
 - PR #31: site público no GitHub Pages lendo o Release "dados" e o E9 do plano conferido contra a main (merge).
 - PR #33: conserto do YAML do publicar-site (fechado sem merge; o mesmo conserto entrou pelo #36 de outro chat).
-- PR #37: medidor de legibilidade (E9 passo 1): `raiz/legibilidade.py`, migração 0019, `raiz legibilidade` (merge).
+- PR #37: medidor de legibilidade (E9 passo 1): `raiz/contato/legibilidade.py`, migração 0019, `raiz legibilidade` (merge).
 - PR #40 (merge):
   - cartão WebP pelo Takumi;
-  - `raiz ficha lote` (`raiz/fichas_lote.py`);
-  - revisor LanguageTool (`raiz/revisor.py`, `infra/languagetool`);
-  - capa de satélite com ThumbHash (`raiz/thumbhash.py`, `front/produtor/src/Ficha.tsx`);
-  - Plus Code e link do Organic Maps (`raiz/localizacao.py`);
+  - `raiz ficha lote` (`raiz/lote/fichas.py`);
+  - revisor LanguageTool (`raiz/contato/revisor.py`, `infra/languagetool`);
+  - capa de satélite com ThumbHash (`raiz/mapa/thumbhash.py`, `front/produtor/src/Ficha.tsx`);
+  - Plus Code e link do Organic Maps (`raiz/contato/localizacao.py`);
   - lock da ficha do produtor consertado.
 - PR #42 (este): CI de todo PR com três jobs, `workflows` (actionlint), `front` (`front/scripts/construir-site.sh`
   sem os dados, mais os testes do front) e `checagens` (Python). O publicar-site usa o mesmo script.
@@ -427,7 +427,7 @@ problemas acionáveis de autorização da ficha, navegação ou caminhos do dom�
 
 ## Nova entrega 1: cena-alvo ligada ao Release (12/11/2026)
 
-- Contrato conferido no código do chat Lote e números (`4f7c558c`, `raiz/restauracao_rodada.py`): ponteiro
+- Contrato conferido no código do chat Lote e números (`4f7c558c`, `raiz/restauracao/rodada.py`): ponteiro
   `lote_PA_central_r11.json`, com `resumos.barata/segura/compacta`; pacotes por execução ficam no Release.
 - Na conferência desta implementação, o ponteiro ainda não existia. `baixar-lotes.mjs` grava ausência explícita;
   erro de rede ou formato interrompe a publicação. A data de publicação vem do arquivo remoto, separada da conferência.
@@ -528,7 +528,7 @@ problemas acionáveis de autorização da ficha, navegação ou caminhos do dom�
   - apontar os testes: `RAIZ_BANCO_URL_TESTE=postgresql+psycopg://raiz:raiz@localhost:5432/raiz_teste`.
 - O LanguageTool é LGPL e roda só como serviço (`infra/languagetool`). O texto do dono vai só para o servidor
   próprio, nunca para api.languagetool.org. A API pública foi usada uma vez, com uma frase neutra de exemplo.
-- `raiz/thumbhash.py` usa o arredondamento do JavaScript (metade para cima), senão o hash não bate com o pacote npm
+- `raiz/mapa/thumbhash.py` usa o arredondamento do JavaScript (metade para cima), senão o hash não bate com o pacote npm
   `thumbhash` do front. O teste fixa um hash conferido com o npm.
 - O link do Organic Maps segue `libs/ge0/url_generator.cpp` do repositório organicmaps (o caminho antigo `ge0/` dá
   404). O teste usa os casos de teste deles.
@@ -685,7 +685,7 @@ relatórios Lighthouse passaram pelo portão fixo. E9 real não foi calibrado e 
 
 ## Continuação, entrega 2: lotes abertos e detalhes autenticados (13/11/2026 UTC)
 
-- `raiz.lotes_publicos` lê **somente o manifesto privado**, depois de conferir a visibilidade autenticada,
+- `raiz.lote.publicos` lê **somente o manifesto privado**, depois de conferir a visibilidade autenticada,
   tamanho e hash. A projeção `publico_lotes` v1 publica apenas os sete indicadores autorizados; não baixa
   os pacotes por fazenda. Token restrito ao passo do Actions, sem variável `VITE_`, cache ou artifact privado.
   O build e o navegador reaplicam a lista positiva. O formato completo antigo é recusado.
@@ -850,7 +850,7 @@ Contrato: [docs/ficha-credito.md](../ficha-credito.md). Apresentação:
   ainda deve ser aplicada no ambiente de publicação antes de servir a funcionalidade real.
 
 Contrato e operação: [docs/ficha-publica-versionada.md](../ficha-publica-versionada.md).
-Implementação: `raiz/publico_versoes.py`, `raiz/publico.py` e `testes/test_publico_versoes.py`.
+Implementação: `raiz/publico/versoes.py`, `raiz/publico.py` e `testes/test_publico_versoes.py`.
 
 ### Gráficos com evidência documental
 
@@ -1092,7 +1092,7 @@ IA) NÃO foi começada, por ordem do fundador, que vai melhorar o visual com out
   `compartilhado/geometria-delta.ts` guarda a geometria dos imóveis em deltas inteiros em micrograus, sem perda
   (cai para GeoJSON comum se algum valor não fechar em 6 casas). Medido: 71% e 79% do tamanho em dois municípios reais.
   O leitor é `camadaGeo` em `dados/fonte-amostra.ts`; o escritor, `geometriaBasicaPublicada` em `vite-dados.ts`.
-- **#134, pedido no Brasil:** `raiz/lotes_publicos.py` (`projetar_nacional`) grava `lote_nacional_resumo.json` a partir do
+- **#134, pedido no Brasil:** `raiz/lote/publicos.py` (`projetar_nacional`) grava `lote_nacional_resumo.json` a partir do
   ponteiro privado; o front lê em `compartilhado/pedidos/lote-nacional.ts` e mostra em `LotesDoRecorte`
   (`globo/src/partes/pedido/PublicacaoPedido.tsx`): terra pronta, terra em espera separada, sobreposição "não verificada".
 

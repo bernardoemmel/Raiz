@@ -83,7 +83,7 @@ jobs:
           import os, pathlib, subprocess, sys
           pasta = pathlib.Path(os.environ['RUNNER_TEMP']) / 'lote-nacional'
           pasta.mkdir(mode=0o700, exist_ok=True)
-          args = [sys.executable, '-m', 'raiz.restauracao_nacional_rodada',
+          args = [sys.executable, '-m', 'raiz.restauracao.nacional_rodada',
                   '--trabalho', str(pasta), '--limite-minutos', '120', '--consultar', '--manutencao']
           for uf in os.environ.get('INPUT_UFS', '').split():
               args.extend(['--uf', uf])
@@ -99,4 +99,4 @@ jobs:
           subprocess.run(args, check=True)
           PY
       - name: Conferir o que foi publicado (todas as UFs, biomas e Brasil, com as três opções)
-        run: uv run python -m raiz.restauracao_nacional_rodada --conferir
+        run: uv run python -m raiz.restauracao.nacional_rodada --conferir

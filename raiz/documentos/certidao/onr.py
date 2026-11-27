@@ -23,7 +23,7 @@ import logging
 from dataclasses import dataclass
 from typing import Protocol
 
-from raiz.privacidade import cnpj_valido, cpf_valido
+from raiz.protecao.privacidade import cnpj_valido, cpf_valido
 
 ESCOPOS = frozenset({"cnib", "saec"})
 MEIOS = frozenset({"assinatura_eletronica", "termo_assinado", "aceite_whatsapp", "aceite_plataforma"})

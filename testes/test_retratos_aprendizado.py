@@ -166,9 +166,9 @@ def test_fonte_ausente_nao_fecha_e_retrato_futuro_nao_entra(con, tmp_path, monke
 
 @pytest.mark.banco
 def test_carregar_recebe_historico_publicado_e_fold_funciona_sem_fontes_atuais(banco_url, tmp_path, monkeypatch):
-    from raiz import carga_continua
     from raiz.aprendizado import reexecucao
     from raiz.aprendizado.transporte import publicar
+    from raiz.carga import continua as carga_continua
     from raiz.executor.armazem import ArmazemLocal
     from raiz.executor.sincronizar import carregar
 

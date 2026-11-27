@@ -77,7 +77,7 @@ jobs:
       - name: Validar estado, eventos e feed antes de publicar
         id: validar
         if: always() && steps.coleta.outputs.gerado == '1'
-        run: uv run --frozen python -m raiz.qualidade_calendario --pasta dados/calendario
+        run: uv run --frozen python -m raiz.qualidade.calendario --pasta dados/calendario
       - name: Publicar o que foi coletado, mesmo com uma fonte indisponível
         if: always() && steps.validar.outcome == 'success'
         run: |

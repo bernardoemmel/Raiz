@@ -7,8 +7,8 @@ import tarfile
 import pandas as pd
 import pytest
 
-from raiz.qualidade_dados import OBRIGATORIAS, ErroQualidade
-from raiz.qualidade_rodada import JSON_RAIZ, OPCOES, validar_publicacao
+from raiz.qualidade.dados import OBRIGATORIAS, ErroQualidade
+from raiz.qualidade.rodada import JSON_RAIZ, OPCOES, validar_publicacao
 
 CAR = "PA-1504950-0123456789ABCDEF0123456789ABCDEF01"
 
@@ -115,7 +115,7 @@ def test_quantile_isolado_novo_tambem_exige_contrato(tmp_path):
 
 
 def test_html_da_rodada_so_e_arquivado_em_destino_privado(tmp_path, monkeypatch):
-    from raiz import restauracao_rodada as RR
+    from raiz.restauracao import rodada as RR
     from testes.test_armazem_release import GitHubFalso, _armazem
 
     pacotes, referencias, manifesto = montar(tmp_path)

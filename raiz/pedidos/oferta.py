@@ -125,7 +125,7 @@ def de_linha(linha: dict, lon: float | None = None, lat: float | None = None) ->
     estadual = linha.get("estadual_status") if isinstance(linha.get("estadual_status"), str) else None
     if estadual == "exclusao":
         bloqueio = True
-    from raiz.salvaguardas import avaliar
+    from raiz.medicao.salvaguardas import avaliar
 
     elegivel_sem_salvaguardas = area > 0 and caminho is not None and caminho_terra not in NAO_ORIGINA and not bloqueio
     salvaguardas = avaliar(linha, linha.get("verificacao"))
@@ -242,7 +242,7 @@ def linhas_da_pasta(pasta: str | Path, cod: int, so: set[str] | None = None,
     pessoais; as colunas são lidas pelo nome e as novas vêm junto. `so`: só esses imóveis; `so_restauracao`: só os
     que têm área para restaurar no desenvolvedor_<mun>.csv (para ler um estado inteiro sem estourar a memória)."""
     from raiz.contrato import COMPLEMENTOS
-    from raiz.privacidade import remover_colunas_pessoais
+    from raiz.protecao.privacidade import remover_colunas_pessoais
 
     pasta = Path(pasta)
     if so_restauracao:
@@ -314,7 +314,7 @@ def atualizar(engine, cod_municipio: int) -> int:
             text("""select i.cod_imovel, ST_X(ST_PointOnSurface(i.geom)) as x, ST_Y(ST_PointOnSurface(i.geom)) as y
                     from funil.imovel i join funil.vigente v on v.cod_imovel = i.cod_imovel
                     where v.cod_municipio_ibge = :c and i.geom is not null"""), {"c": int(cod_municipio)})}  # fmt: skip
-    from raiz.salvaguardas import do_banco as salvaguardas_do_banco
+    from raiz.medicao.salvaguardas import do_banco as salvaguardas_do_banco
 
     verificacoes = salvaguardas_do_banco(engine, [str(li["cod_imovel"]) for li in linhas])
     regs = []
@@ -381,8 +381,8 @@ def do_banco(engine, ufs: list[str] | None = None, municipios: list[int] | None 
             a["cod_imovel"] = r.cod_imovel
             a["marcos"] = {int(k): v for k, v in (a.get("marcos") or {}).items()}
             linhas.append(a)
-    from raiz.salvaguardas import avaliar
-    from raiz.salvaguardas import do_banco as salvaguardas_do_banco
+    from raiz.medicao.salvaguardas import avaliar
+    from raiz.medicao.salvaguardas import do_banco as salvaguardas_do_banco
 
     verificacoes = salvaguardas_do_banco(engine, [li["cod_imovel"] for li in linhas])
     for li in linhas:

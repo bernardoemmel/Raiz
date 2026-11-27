@@ -89,7 +89,7 @@ A medida é `carbono_ha` do motor: o menor entre a área além da reserva legal 
 Não é a área total restaurável do desenvolvedor, um lote selecionado, a superfície disponível para venda
 ou uma declaração de elegibilidade. A fonte original está descrita em `docs/colunas.md`.
 
-`python -m raiz.potencial_publico` lê os pacotes canônicos no Release privado, com autenticação,
+`python -m raiz.publico.potencial` lê os pacotes canônicos no Release privado, com autenticação,
 verificação de visibilidade, tamanho e SHA-256. Os IDs dos assets são congelados antes da leitura.
 Os hashes de cada GeoParquet são conferidos contra `_versoes.json` do pacote de medidas;
 um par misturado durante uma publicação é recusado e a leitura daquela UF é repetida.

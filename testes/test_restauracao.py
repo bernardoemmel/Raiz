@@ -537,7 +537,7 @@ def test_faixas_de_distancia_e_linha_base_medida(tmp_path):
     import geopandas as gpd
     import shapely
 
-    from raiz import restauracao_geo as G
+    from raiz.restauracao import geo as G
 
     res = 0.00026949458523585647
     n = 400  # ~12 km de lado
@@ -570,7 +570,7 @@ def test_faixas_de_distancia_e_linha_base_medida(tmp_path):
 
 
 def test_nome_do_ladrilho_do_copernicus():
-    from raiz import restauracao_geo as G
+    from raiz.restauracao import geo as G
 
     assert G.nome_ladrilho_dem(-2, -48) == ("S02", "W048")
     assert G.nome_ladrilho_dem(0, -50) == ("N00", "W050")

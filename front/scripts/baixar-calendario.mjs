@@ -13,7 +13,7 @@ function salvar(destino, json) {
   let projetado
   try {
     if (Buffer.byteLength(json) > 16 * 1024 * 1024) throw new Error("limite")
-    projetado = JSON.parse(execFileSync("python3", ["-m", "raiz.qualidade_calendario"], {
+    projetado = JSON.parse(execFileSync("python3", ["-m", "raiz.qualidade.calendario"], {
       cwd: repo, input: json, encoding: "utf8", stdio: ["pipe", "pipe", "pipe"], maxBuffer: 32 * 1024 * 1024,
     }))
     if (JSON.parse(json).disponivel === false) {

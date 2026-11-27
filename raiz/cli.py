@@ -12,8 +12,8 @@ from raiz.aprendizado.cli_folds import registrar as registrar_folds
 from raiz.aprendizado.cli_sobrevivencia import registrar as registrar_sobrevivencia
 from raiz.calendario.cli import app as calendario_cli
 from raiz.coleta.arcgis_cli import coletar_arcgis
-from raiz.privacidade import configurar_log, varrer
-from raiz.prospeccao_operacao import registrar as registrar_prospeccao
+from raiz.prospeccao.operacao import registrar as registrar_prospeccao
+from raiz.protecao.privacidade import configurar_log, varrer
 
 app = typer.Typer(
     help="Raíz: coleta, funil, título, agentes e aprendizado em cima do motor.",
@@ -94,7 +94,7 @@ def aprendizado_gabarito(
 
     from raiz.aprendizado.registro import registrar_gabarito
     from raiz.banco import engine
-    from raiz.privacidade import mascarar
+    from raiz.protecao.privacidade import mascarar
 
     if referencia and mascarar(referencia) != referencia:
         raise typer.BadParameter("a referência tem CPF/CNPJ; use o número do documento, não o da pessoa")
@@ -389,7 +389,7 @@ app.add_typer(pessoal, name="pessoal")
 @pessoal.command("gerar-chave")
 def pessoal_gerar_chave() -> None:
     """Gera uma chave nova para RAIZ_CHAVE_PESSOAL (guarde no .env e num cofre fora do servidor)."""
-    from raiz.pessoal import gerar_chave
+    from raiz.protecao.pessoal import gerar_chave
 
     typer.echo(gerar_chave())
 
@@ -982,7 +982,7 @@ def geo_carregar(
     from pathlib import Path
 
     from raiz.banco import engine
-    from raiz.geo import arquivo_base, carregar
+    from raiz.mapa.geo import arquivo_base, carregar
 
     p = Path(pasta) if pasta else None
     with engine().begin() as con:
@@ -1006,7 +1006,7 @@ def vigiar_saida(
     from pathlib import Path
 
     from raiz.banco import engine
-    from raiz.carga_continua import varrer, vigiar
+    from raiz.carga.continua import varrer, vigiar
     from raiz.funil.rodar import dir_trabalho
 
     pasta = Path(saida) if saida else dir_trabalho() / "saida"
@@ -1039,8 +1039,8 @@ def flag_recalcular(
     """Refaz flag_<mun>.csv que falta ou que foi calculado com outra versão da regra."""
     from pathlib import Path
 
-    from raiz import flag as F
     from raiz.funil.rodar import dir_trabalho
+    from raiz.medicao import flag as F
 
     pasta = Path(saida) if saida else dir_trabalho() / "saida"
     lista = [u.strip().upper() for u in ufs.split(",")] if ufs else None
@@ -1090,8 +1090,8 @@ def rebanho_recalcular(
     """Grava rebanho_<mun>.csv onde falta ou foi feito com outra versão da PPM ou das premissas."""
     from pathlib import Path
 
-    from raiz import rebanho as RB
     from raiz.funil.rodar import dir_trabalho
+    from raiz.medicao import rebanho as RB
 
     base = Path(saida) if saida else dir_trabalho() / "saida"
     lista = [u.strip().upper() for u in ufs.split(",")] if ufs else sorted(p.name for p in base.iterdir() if p.is_dir())
@@ -1144,8 +1144,8 @@ def restauracao_informar(
     from sqlalchemy import text
 
     from raiz.banco import engine
-    from raiz.busca import normalizar_codigo
-    from raiz.restauracao_aprendizado import informar
+    from raiz.leitura.busca import normalizar_codigo
+    from raiz.restauracao.aprendizado import informar
 
     eng = engine()
     with eng.begin() as con:
@@ -1164,7 +1164,7 @@ def restauracao_informar(
 def restauracao_comparar() -> None:
     """Real contra previsto por modo: razão mediana, cobertura da faixa P10-P90 e acerto do modo."""
     from raiz.banco import engine
-    from raiz.restauracao_aprendizado import comparar
+    from raiz.restauracao.aprendizado import comparar
 
     with engine().connect() as con:
         linhas = comparar(con)
@@ -1180,7 +1180,7 @@ def restauracao_recalibrar(
 ) -> None:
     """Propõe (ou grava) os fatores de calibração de custo e captura por modo a partir do real dos clientes."""
     from raiz.banco import engine
-    from raiz.restauracao_aprendizado import recalibrar
+    from raiz.restauracao.aprendizado import recalibrar
 
     with engine().connect() as con:
         r = recalibrar(con, gravar=gravar)
@@ -1387,7 +1387,7 @@ def terra_recalcular(
 @terra_cli.command("preparar-cnfp")
 def terra_preparar_cnfp() -> None:
     """Baixa o Cadastro Nacional de Florestas Públicas (SFB) e grava um GeoParquet por estado."""
-    from raiz import terra_publica as TP
+    from raiz.terra import publica as TP
 
     z = TP.baixar_cnfp()
     for uf, n in TP.preparar_cnfp(z).items():
@@ -1401,8 +1401,8 @@ def terra_publica_gerar(
     reducao: Annotated[int, typer.Option(help="grade da distância à mata: 1 = 30 m, 4 = 120 m")] = 4,
 ) -> None:
     """Gera a camada "Terra pública para restaurar" de cada estado e carrega no banco."""
-    from raiz import terra_publica as TP
     from raiz.funil.rodar import dir_trabalho
+    from raiz.terra import publica as TP
 
     for uf in [u.strip().upper() for u in ufs.split(",")]:
         f = TP.gerar_uf(uf, dir_trabalho() / "cache", reducao=reducao)
@@ -1420,7 +1420,7 @@ def terra_publica_gerar(
 @terra_cli.command("editais")
 def terra_editais() -> None:
     """Confere as páginas de editais do SFB e do Ideflor-Bio e lista os links novos (registrar em concessoes.yaml)."""
-    from raiz import terra_publica as TP
+    from raiz.terra import publica as TP
 
     r = TP.conferir_editais()
     for n in r["novos"]:
@@ -1543,7 +1543,7 @@ def dossie_lote_cmd(
     import tempfile
     from pathlib import Path
 
-    from raiz import dossie_lote as DL
+    from raiz.lote import dossie as DL
 
     nome = nome or f"dossie-{municipio}-{modo}"
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,60}", nome):
@@ -1556,7 +1556,7 @@ def dossie_lote_cmd(
     with tempfile.TemporaryDirectory() as tmp:
         if pasta is None:
             from raiz.executor.transferencia_privada import baixar_arquivo
-            from raiz.restauracao_nacional_fontes import extrair_uf
+            from raiz.restauracao.nacional_fontes import extrair_uf
 
             _, uf = DL.nome_municipio(municipio)
             for pac in (f"raiz_{uf}.tar.gz", f"raiz_geo_{uf}.tar.gz"):  # só o município sai do pacote
@@ -2310,8 +2310,8 @@ def ficha_gerar(
 
     from raiz.carga import municipios_na_pasta
     from raiz.funil.rodar import dir_trabalho
-    from raiz.imovel_dados import escrever_municipio
-    from raiz.osm import build_recente
+    from raiz.leitura.imovel import escrever_municipio
+    from raiz.mapa.osm import build_recente
 
     base = Path(saida) if saida else dir_trabalho() / "saida"
     lista = [u.strip().upper() for u in ufs.split(",")] if ufs else sorted(p.name for p in base.iterdir() if p.is_dir())
@@ -2334,8 +2334,8 @@ def ficha_lote(
     """Grava a ficha JSON de cada fazenda do banco, o rows.json do cartão e do vídeo e o índice (E9, passo 1)."""
     from pathlib import Path
 
-    from raiz import fichas_lote
     from raiz.banco import engine
+    from raiz.lote import fichas as fichas_lote
 
     cods = [int(x) for x in municipios.split(",")] if municipios else None
     r = fichas_lote.gravar(
@@ -2355,7 +2355,7 @@ def mapa_atualizar(
     dia: Annotated[str | None, typer.Option(help="build AAAAMMDD; padrão: o mais recente")] = None,
 ) -> None:
     """Recorta o Brasil até o zoom 14 do build do Protomaps, baixa fontes e sprites e grava o manifesto."""
-    from raiz import mapa_base
+    from raiz.mapa import base as mapa_base
 
     m = mapa_base.atualizar(dia)
     typer.echo(f"mapa base {m['arquivo']}: {m['bytes'] / 1e9:.1f} GB, zoom até {m['zoom_max']}")
@@ -2375,8 +2375,8 @@ def satelite_gerar(
     import shapely
     from sqlalchemy import text
 
-    from raiz import satelite
     from raiz.banco import engine
+    from raiz.mapa import satelite
 
     with engine().connect() as con:
         linhas = con.execute(
@@ -2407,7 +2407,7 @@ def municipio_urbana(municipios: Annotated[list[int], typer.Argument(help="códi
     """Gera o contorno da área urbanizada da sede (MapBiomas) e grava no PostGIS."""
     from raiz.banco import engine
     from raiz.funil.rodar import dir_trabalho
-    from raiz.municipio_dados import urbana
+    from raiz.leitura.municipio import urbana
 
     eng = engine()
     for cod in municipios:
@@ -2499,7 +2499,7 @@ def api_worker(uma: Annotated[bool, typer.Option(help="executa um ciclo e termin
     from sqlalchemy import text
 
     from raiz.banco import engine
-    from raiz.pessoal import Cofre, SemChavePessoal
+    from raiz.protecao.pessoal import Cofre, SemChavePessoal
     from raiz.publica import trabalhos, webhooks
     from raiz.publica.telemetria import configurar_telemetria
 
@@ -2604,9 +2604,9 @@ def lote_montar(
     from pathlib import Path
 
     from raiz import lote as L
-    from raiz import lote_relatorio as LR
     from raiz import restauracao as RS
     from raiz.funil.rodar import dir_trabalho
+    from raiz.lote import relatorio as LR
 
     base = Path(saida) if saida else dir_trabalho() / "saida"
     mun = [int(x) for x in municipios.split(",")] if municipios else None
@@ -2655,8 +2655,8 @@ def legibilidade_medir(
     import json
     from pathlib import Path
 
-    from raiz.legibilidade import medir, resumo
-    from raiz.revisor import nota_de_envio
+    from raiz.contato.legibilidade import medir, resumo
+    from raiz.contato.revisor import nota_de_envio
 
     texto = Path(arquivo).read_text(encoding="utf-8") if arquivo else sys.stdin.read()
     m = medir(texto, preparar_texto=False) if cru else nota_de_envio(texto)
@@ -2687,7 +2687,7 @@ def legibilidade_medir(
 def legibilidade_modelos() -> None:
     """Mede cada modelo de mensagem ao dono (raiz/agentes/textos.py), preenchido com um exemplo."""
     from raiz.agentes.textos import exemplos
-    from raiz.legibilidade import medir
+    from raiz.contato.legibilidade import medir
 
     typer.echo(f"{'modelo':14} {'palavras':>8} {'p/frase':>7} {'ALT':>6} {'Martins':>7} {'LT':>6} {'resultado':>9}")
     for nome, texto in exemplos().items():
@@ -2715,8 +2715,8 @@ def prospeccao_verificar_buscas(
     from sqlalchemy.exc import SQLAlchemyError
 
     from raiz.banco import engine
-    from raiz.prospeccao_acesso import ErroAcesso
-    from raiz.prospeccao_buscas import verificar, verificar_todas
+    from raiz.prospeccao.acesso import ErroAcesso
+    from raiz.prospeccao.buscas import verificar, verificar_todas
 
     try:
         banco_engine = engine()

@@ -5,7 +5,7 @@ o laudo conferir depois o que a Raíz viu.
   vai já decodificado (sem Content-Encoding). O capture_http do warcio não serve aqui: ele só grava se for importado
   antes do requests no processo, o que não dá para garantir.
 - Página pública do SIGEF ou do CAR pode trazer nome e CPF do detentor. Por isso o WARC é cifrado com a chave
-  pessoal (RAIZ_CHAVE_PESSOAL, raiz/pessoal.py) antes de ir para o disco; sem a chave, só os hashes ficam.
+  pessoal (RAIZ_CHAVE_PESSOAL, raiz/protecao/pessoal.py) antes de ir para o disco; sem a chave, só os hashes ficam.
 - O índice (consultas.jsonl, na pasta do imóvel) guarda só URL, motivo, situação HTTP, tamanho, hash SHA-256 da
   resposta e do WARC e a data; é o que o laudo mostra. URL com CPF ou CNPJ é recusada.
 - Fica em dados/documentos/warc/<imóvel>/ (fora do git), ou em RAIZ_DOCUMENTOS_DIR/warc.
@@ -86,7 +86,7 @@ def _cofre(cofre):
     if cofre is not None:
         return cofre
     try:
-        from raiz.pessoal import Cofre
+        from raiz.protecao.pessoal import Cofre
 
         return Cofre()
     except Exception:  # noqa: BLE001 - sem chave pessoal: guarda só os hashes
@@ -98,8 +98,8 @@ def consultar(url: str, cod_imovel: str, motivo: str, cofre=None, base: Path | N
     from urllib.parse import unquote
 
     from raiz.documentos.privacidade import tirar_nomes
-    from raiz.logs_seguros import sanitizar_log
-    from raiz.privacidade import mascarar
+    from raiz.protecao.logs import sanitizar_log
+    from raiz.protecao.privacidade import mascarar
 
     # O endereço original também vai ao índice e ao laudo. Decodificar antes da
     # conferência impede que %2E/%2D (ou dígitos codificados) escondam documentos.

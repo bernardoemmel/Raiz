@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 
 from raiz.aprendizado.reexecucao import FONTES, HistoricoInsuficiente
-from raiz.privacidade import colunas_pessoais
+from raiz.protecao.privacidade import colunas_pessoais
 
 TEXTOS = {
     "uf": set("AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split()),
@@ -172,7 +172,8 @@ class Captura:
 
     @contextlib.contextmanager
     def modelos(self):
-        from raiz import flag, rebanho, restauracao
+        from raiz import restauracao
+        from raiz.medicao import flag, rebanho
         from raiz.titulo import regularizacao, triagem
 
         orig = (flag.por_imovel, restauracao.por_imovel, regularizacao.avaliar, triagem.triar, rebanho.espalhar)

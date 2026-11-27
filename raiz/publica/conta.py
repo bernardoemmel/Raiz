@@ -58,7 +58,7 @@ def normalizar_cnpj(x: str) -> str:
 
 
 def cnpj_valido(cnpj: str) -> bool:
-    from raiz.privacidade import cnpj_valido as validar
+    from raiz.protecao.privacidade import cnpj_valido as validar
 
     return validar(cnpj)
 
@@ -70,7 +70,7 @@ def mascarar_cnpj(cnpj: str) -> str:
 
 
 def _indice_cnpj(cnpj: str, cofre=None) -> str:
-    from raiz.pessoal import Cofre
+    from raiz.protecao.pessoal import Cofre
 
     return (cofre or Cofre()).indice("cnpj:" + normalizar_cnpj(cnpj))
 
@@ -440,7 +440,7 @@ def aprovar_licenca(engine: Engine, cliente_id: int) -> None:
 
 
 def alertas(engine: Engine, cliente_id: int | None = None) -> list[dict]:
-    from raiz.prospeccao_protecao import fechar_alerta
+    from raiz.prospeccao.protecao import fechar_alerta
 
     filtro = "where a.cliente_id = :c" if cliente_id is not None else ""
     with engine.connect() as con:

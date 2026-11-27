@@ -275,7 +275,7 @@ def publicar(
     arm: Armazem, rel: Release, chave: str | None, resumo: dict | None = None, entradas_lidas: list[str] | None = None
 ) -> dict:
     """Sobe o que mudou; manifesto por último; apaga as entradas da API que já entraram no estado."""
-    from raiz.qualidade_dados import ErroQualidade, validar_arquivos, validar_json
+    from raiz.qualidade.dados import ErroQualidade, validar_arquivos, validar_json
 
     publicos = _publicos(arm)
     encontrados = {p.resolve() for p in arm.publico.rglob("*") if p.is_file()}

@@ -11,7 +11,7 @@ from raiz.calendario.catalogo import COBERTURA_ID, COBERTURA_NOME
 from raiz.calendario.coleta import _permitida, fontes
 from raiz.calendario.feed import ics
 from raiz.calendario.modelos import Evento, FonteEstado, filtrar
-from raiz.privacidade import mascarar
+from raiz.protecao.privacidade import mascarar
 
 ESTADO_PUBLICO = "https://github.com/bernardoemmel/Raiz/releases/download/calendario/estado.json"
 MAX_ESTADO = 32 * 1024 * 1024

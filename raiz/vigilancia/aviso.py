@@ -17,12 +17,12 @@ import hashlib
 
 import pandas as pd
 
-from raiz.legibilidade import medir
+from raiz.contato.legibilidade import medir
 from raiz.vigilancia.privacidade import mascarar
 from raiz.vigilancia.regras import Regras
 
 try:  # o revisor (LanguageTool) precisa da config do produto; a vigilância roda com dependências mínimas
-    from raiz.revisor import nota_de_envio
+    from raiz.contato.revisor import nota_de_envio
 except ImportError:  # pragma: no cover - só no ambiente mínimo da vigilância
     nota_de_envio = medir
 

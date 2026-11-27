@@ -24,7 +24,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import Engine, text
 
 from raiz.aprendizado import acerto
-from raiz.privacidade import documento_em_identificador
+from raiz.protecao.privacidade import documento_em_identificador
 
 MINIMO_IMOVEIS = 5
 IDENTIFICADOR = re.compile(r"[A-Za-z][A-Za-z0-9_.+:-]{0,119}\Z")

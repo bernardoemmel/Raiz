@@ -5,7 +5,7 @@ import json
 import pandas as pd
 import pytest
 
-from raiz import restauracao_validacao as V
+from raiz.restauracao import validacao as V
 
 
 def test_pasto_ausente_nao_e_area_livre_e_pequena_continua():

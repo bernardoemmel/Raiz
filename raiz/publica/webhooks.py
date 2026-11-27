@@ -27,7 +27,7 @@ import httpx
 from opentelemetry.trace import Status, StatusCode
 from sqlalchemy import Connection, Engine, text
 
-from raiz.pessoal import Cofre
+from raiz.protecao.pessoal import Cofre
 from raiz.publica.telemetria import entrega_webhook
 
 _SIGILO = ContextVar("webhook_sigilo", default=False)

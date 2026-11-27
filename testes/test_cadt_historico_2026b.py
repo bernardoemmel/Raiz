@@ -10,7 +10,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from raiz import cadt, lote, restauracao
+from raiz import lote, restauracao
+from raiz.medicao import cadt
 from testes.conftest import AMOSTRA
 
 CATALOGO = "release-github://bernardoemmel/Raiz/dados-privados/cadt_lotes.json"

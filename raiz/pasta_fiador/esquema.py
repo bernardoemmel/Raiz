@@ -10,8 +10,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
 
-from raiz.logs_seguros import sanitizar_log
-from raiz.privacidade import documento_em_identificador
+from raiz.protecao.logs import sanitizar_log
+from raiz.protecao.privacidade import documento_em_identificador
 
 Codigo = Annotated[str, StringConstraints(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_.:/-]{0,119}$")]
 Hash = Annotated[str, StringConstraints(pattern=r"^[a-f0-9]{64}$")]

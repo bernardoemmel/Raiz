@@ -38,7 +38,7 @@ import geopandas as gpd
 import shapely
 import shapely.ops
 
-from raiz import terra_comprometida as tc
+from raiz.terra import comprometida as tc
 
 VERSAO = "comprometida-coleta-2026b"
 FONTES_PADRAO = ("verra", "sfb_concessoes", "limites_pesquisa", "infoamazonia_carbono", "para_redd_zenodo")

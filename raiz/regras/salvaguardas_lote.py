@@ -21,7 +21,7 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-from raiz.privacidade import mascarar
+from raiz.protecao.privacidade import mascarar
 
 ARQ = Path(__file__).parent / "padroes" / "salvaguardas_lote.yaml"
 MOTIVOS_REVISAO = ("contestar_criterio", "corrigir_dado", "apresentar_documento", "contestar_nota")
@@ -71,7 +71,7 @@ def decisao(cod_imovel: str, tipo: str, criterio: str, texto: str, modelo_versao
     """Decisão estável e revisável. `dados` contém somente parâmetros, nunca identidade do titular."""
     if not all(_s(v) for v in (cod_imovel, tipo, criterio, texto, modelo_versao)):
         raise ValueError("decisão exige imóvel, tipo, critério em texto e versão do modelo")
-    from raiz.privacidade import colunas_pessoais
+    from raiz.protecao.privacidade import colunas_pessoais
 
     if colunas_pessoais(dados):
         raise ValueError("a trilha não aceita dados pessoais")

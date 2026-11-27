@@ -67,7 +67,7 @@ tabela por fazenda, travas, “o que destrava” ou referências aos pacotes pri
 Medidas de grupos menores que cinco fazendas são suprimidas, sem excluir as
 fazendas do lote.
 
-`python -m raiz.lotes_publicos` lê somente o manifesto no arquivo autenticado,
+`python -m raiz.lote.publicos` lê somente o manifesto no arquivo autenticado,
 reconfere a visibilidade privada e valida tamanho/digest. Nunca baixa os pacotes
 individuais. A projeção grava apenas o resumo em `dados/lotes-publicos/`; o build
 e o navegador aplicam outra lista positiva. Não ler `RAIZ_LOTES` nem a pasta

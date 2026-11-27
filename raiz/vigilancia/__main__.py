@@ -30,7 +30,7 @@ from pathlib import Path
 
 class _LogSeguro(logging.Formatter):
     def format(self, record):
-        from raiz.logs_seguros import sanitizar_log
+        from raiz.protecao.logs import sanitizar_log
 
         return sanitizar_log(super().format(record))
 

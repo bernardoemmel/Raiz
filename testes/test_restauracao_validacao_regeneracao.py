@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from raiz import restauracao_validacao_regeneracao as V
+from raiz.restauracao import validacao_regeneracao as V
 
 
 def parcelas():

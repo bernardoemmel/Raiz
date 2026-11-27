@@ -17,7 +17,7 @@ from fastapi import APIRouter, Header, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
-from raiz import salvaguardas as SG
+from raiz.medicao import salvaguardas as SG
 from raiz.pedidos import pix
 from raiz.pedidos import servico as S
 

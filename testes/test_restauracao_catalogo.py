@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from raiz import restauracao_catalogo as C
+from raiz.restauracao import catalogo as C
 
 
 def criar_fonte(pasta: Path, uf="PA", cod=1500602, n=3, *, modelo="modelo-teste", bioma="Amazônia"):

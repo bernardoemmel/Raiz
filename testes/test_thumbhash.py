@@ -1,4 +1,4 @@
-"""ThumbHash (raiz/thumbhash.py): os hashes esperados saíram do pacote npm thumbhash 0.1.1 (o mesmo que a ficha do
+"""ThumbHash (raiz/mapa/thumbhash.py): os hashes esperados saíram do pacote npm thumbhash 0.1.1 (o mesmo que a ficha do
 produtor usa para desenhar o borrão), com as mesmas imagens."""
 
 import base64
@@ -6,7 +6,7 @@ import base64
 import pytest
 from PIL import Image
 
-from raiz import thumbhash as T
+from raiz.mapa import thumbhash as T
 
 
 def _gradiente(w, h, alfa=False):

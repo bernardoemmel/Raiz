@@ -10,8 +10,8 @@ from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from raiz.privacidade import cnpj_valido, cpf_valido, mascarar
-from raiz.qualidade_calendario import validar_url_publica
+from raiz.protecao.privacidade import cnpj_valido, cpf_valido, mascarar
+from raiz.qualidade.calendario import validar_url_publica
 
 Tipo = Literal[
     "leilao_imovel",

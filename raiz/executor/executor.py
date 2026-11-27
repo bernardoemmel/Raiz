@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from raiz.executor.armazem import Armazem, ler_json, por_json, sha256_arquivo
-from raiz.logs_seguros import sanitizar_log
+from raiz.protecao.logs import sanitizar_log
 
 log = logging.getLogger(__name__)
 

@@ -11,7 +11,7 @@ import pytest
 
 from raiz.documentos.busca import fontes as F
 from raiz.documentos.busca import semanal
-from raiz.qualidade_busca import ErroQualidadeBusca, preparar, validar
+from raiz.qualidade.busca import ErroQualidadeBusca, preparar, validar
 from testes.test_privacidade import CNPJ, CPF
 
 
@@ -109,7 +109,7 @@ def test_cli_falha_sem_expor_conteudo_e_sem_alterar_arquivos(pacote):
     pacote[1].write_text("contato@example.invalid")
     antes = pacote[0].read_bytes()
     resultado = subprocess.run(
-        [sys.executable, "-m", "raiz.qualidade_busca", *map(str, pacote)], capture_output=True, text=True, check=False
+        [sys.executable, "-m", "raiz.qualidade.busca", *map(str, pacote)], capture_output=True, text=True, check=False
     )
     assert resultado.returncode == 1
     assert "bloqueada" in resultado.stderr

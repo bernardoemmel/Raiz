@@ -23,7 +23,7 @@ Os números do site (27 estados, milhares de municípios, milhões de hectares) 
 | Peça | Onde | Para quê |
 |---|---|---|
 | Site | `front/globo` (React, MapLibre) e `front/produtor` (ficha no celular) | a demo, publicada no GitHub Pages |
-| Funil, crédito e lote | `motor/` e `raiz/restauracao.py`, `raiz/lote.py` | a conta, município a município |
+| Funil, crédito e lote | `motor/`, `raiz/restauracao/` e `raiz/lote/` | a conta, município a município |
 | Uma API | `raiz/api.py` | o mesmo processo sobe o front, o pedido e a API `/v1` |
 | Pipeline | `raiz/executor/` e o workflow Processar estados | baixa as fontes, retoma de onde parou e publica o Release |
 | Nuvem, enxuta | `infra/docker-compose.yml` | PostGIS na própria máquina. Keycloak, observabilidade e o modelo local são arquivos à parte, para quando o servidor existir |

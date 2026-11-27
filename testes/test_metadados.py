@@ -8,7 +8,7 @@ from fnmatch import fnmatchcase
 
 import pytest
 
-from raiz.metadados import CONFORMIDADE, croissant_release, croissant_uf, ficha_arquivo, validar
+from raiz.publico.metadados import CONFORMIDADE, croissant_release, croissant_uf, ficha_arquivo, validar
 
 mlc = pytest.importorskip("mlcroissant")
 pytest.importorskip("croissant_baker")
@@ -228,7 +228,7 @@ def _ficha_plana():
 
 
 def test_validacao_limitada_cobre_tudo_sem_mutar_entrada(monkeypatch):
-    from raiz import metadados
+    from raiz.publico import metadados
 
     ficha = _ficha_plana()
     anterior = copy.deepcopy(ficha)
@@ -261,7 +261,7 @@ def test_validacao_limitada_cobre_tudo_sem_mutar_entrada(monkeypatch):
     "caso", ["id_repetido", "id_campo_arquivo", "origem_orfa", "origem_tipo", "pai_orfao", "ciclo"]
 )
 def test_invariantes_globais_falham_antes_de_validar_qualquer_lote(monkeypatch, caso):
-    from raiz import metadados
+    from raiz.publico import metadados
 
     ficha = _ficha_plana()
     a, b = ficha["recordSet"]
@@ -285,7 +285,7 @@ def test_invariantes_globais_falham_antes_de_validar_qualquer_lote(monkeypatch, 
 
 @pytest.mark.parametrize("chave", ["references", "parentField", "subField", "annotation", "data"])
 def test_ficha_grande_com_relacao_fora_do_perfil_nao_omite_campos(monkeypatch, chave):
-    from raiz import metadados
+    from raiz.publico import metadados
 
     ficha = _ficha_plana()
     ficha["recordSet"][0]["field"][0][chave] = {"@id": "registros_b/classe"}
@@ -297,7 +297,7 @@ def test_ficha_grande_com_relacao_fora_do_perfil_nao_omite_campos(monkeypatch, c
 
 @pytest.mark.parametrize("chave", ["@graph", "@reverse", "@included", "@nest"])
 def test_expansao_jsonld_nao_suportada_em_ficha_grande_e_recusada(monkeypatch, chave):
-    from raiz import metadados
+    from raiz.publico import metadados
 
     ficha = _ficha_plana()
     ficha[chave] = {"@id": "NAO_PUBLICAR"}
@@ -317,7 +317,7 @@ def test_contexto_remoto_nunca_e_baixado(monkeypatch):
 
 
 def test_recordset_maior_que_limite_nao_e_truncado(monkeypatch):
-    from raiz import metadados
+    from raiz.publico import metadados
 
     monkeypatch.setattr(metadados, "LIMITE_CAMPOS", 1)
     monkeypatch.setattr(mlc, "Dataset", lambda *a, **kw: pytest.fail("não deve validar parte do RecordSet"))
@@ -343,7 +343,7 @@ def test_ficha_generica_pequena_usa_validador_integral(monkeypatch):
 
 
 def test_baker_em_lotes_preserva_ficha_ids_e_origens(tmp_path, monkeypatch):
-    from raiz import metadados
+    from raiz.publico import metadados
 
     for i in range(5):
         (tmp_path / f"imoveis_150495{i}.csv").write_text(f"cod_imovel,ha\nCAR-{i},{i + 1}\n")
@@ -385,7 +385,7 @@ def test_tipo_em_lista_e_json_literal_usam_fallback_pequeno_sem_falsa_colisao():
 
 
 def test_lote_inclui_toda_cadeia_de_containers(monkeypatch):
-    from raiz import metadados
+    from raiz.publico import metadados
 
     ficha = _ficha_plana()
     interno = copy.deepcopy(ficha["distribution"][0])
@@ -404,7 +404,7 @@ def test_lote_inclui_toda_cadeia_de_containers(monkeypatch):
 
 
 def test_erro_de_parser_no_filho_nao_expoe_stdout_stderr_ou_valores(tmp_path, capfd):
-    from raiz import metadados
+    from raiz.publico import metadados
 
     nome = "imoveis_1504950.csv"
     (tmp_path / nome).write_text("cod_imovel,ha\nCAR-A,3,NAO_PUBLICAR_VALOR\n")
@@ -471,7 +471,7 @@ def test_catalogo_recusa_referencia_de_outro_destino_ou_escopo(referencia):
 
 
 def test_esquema_financeiro_nao_vira_ficha_publica_por_nao_ter_cpf(tmp_path, monkeypatch):
-    from raiz import metadados
+    from raiz.publico import metadados
 
     (tmp_path / "desenvolvedor_1504950.csv").write_text("cod_imovel,tir_projeto_pct_p50\nCAR,12\n")
     monkeypatch.setattr(metadados, "_executar_lote", lambda *a, **k: pytest.fail("recusar antes de ler valores"))
@@ -509,7 +509,7 @@ def ficha_basica(tmp_path):
 
 
 def test_guard_publico_aceita_ficha_completa_e_formatos_permitidos(ficha_basica):
-    from raiz.metadados import validar_ficha_publica
+    from raiz.publico.metadados import validar_ficha_publica
 
     def aceitar(nome, ficha):
         validar(ficha)
@@ -540,7 +540,7 @@ def test_guard_publico_aceita_ficha_completa_e_formatos_permitidos(ficha_basica)
     "ataque", ["texto", "exemplo", "contexto", "draft", "campo_financeiro", "origem", "duplicado", "bool"]
 )
 def test_guard_publico_recusa_reexposicao_em_metadados(ficha_basica, ataque):
-    from raiz.metadados import validar_ficha_publica
+    from raiz.publico.metadados import validar_ficha_publica
 
     ficha = copy.deepcopy(ficha_basica)
     if ataque == "texto":
@@ -565,7 +565,7 @@ def test_guard_publico_recusa_reexposicao_em_metadados(ficha_basica, ataque):
 
 
 def test_guard_publico_nao_infere_destino_nem_libera_assets_pagos():
-    from raiz.metadados import validar_ficha_publica
+    from raiz.publico.metadados import validar_ficha_publica
 
     for nome in (
         "quantis_PA.parquet",
@@ -602,7 +602,7 @@ def test_tar_basico_sem_csv_exige_fingerprint_do_pacote_vazio():
     import gzip
     import io
 
-    from raiz.metadados import TAR_VAZIO_SHA256, validar_ficha_publica
+    from raiz.publico.metadados import TAR_VAZIO_SHA256, validar_ficha_publica
 
     pacote = io.BytesIO()
     with (

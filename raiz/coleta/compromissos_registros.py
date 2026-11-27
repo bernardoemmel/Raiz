@@ -19,7 +19,7 @@ import httpx
 from shapely import make_valid, union_all
 from shapely.geometry import Polygon
 
-from raiz.terra_comprometida import catalogo_fontes, normalizar
+from raiz.terra.comprometida import catalogo_fontes, normalizar
 
 NS = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 

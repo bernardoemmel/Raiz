@@ -90,7 +90,7 @@ def criar_cliente(
 def _cofre(cofre=None):
     if cofre is not None:
         return cofre
-    from raiz.pessoal import Cofre
+    from raiz.protecao.pessoal import Cofre
 
     return Cofre()
 
@@ -1141,7 +1141,7 @@ def reservar(engine: Engine, pedido_id: str, cliente_id: int, por_agente: str | 
     O caminho legado sem por_agente representa a ação explícita de uma pessoa autenticada e aprova ao final.
     Nenhum callback externo roda durante a preparação: só a notificação interna, sem o segredo do link.
     """
-    from raiz import salvaguardas as SG
+    from raiz.medicao import salvaguardas as SG
     from raiz.publica.aprovacao import aprovar
 
     token = None
@@ -1272,7 +1272,7 @@ def confirmar_pagamento(engine: Engine, externo_id: str, quando: dt.datetime | N
     Estado, prazo, valor ou grupo divergentes preservam o fato financeiro e exigem
     revisão humana. Não autoriza estorno nem reativa reserva cancelada/vencida.
     """
-    from raiz import salvaguardas as SG
+    from raiz.medicao import salvaguardas as SG
     from raiz.publica.trabalhos import ConexaoVinculada
     from raiz.publica.webhooks import enfileirar
 

@@ -13,8 +13,8 @@ from pydantic import ValidationError
 from raiz.pasta_fiador.esquema import Documento, FonteCampo, Pasta
 from raiz.pasta_fiador.geracao import gerar
 from raiz.pasta_fiador.validacao import validar
-from raiz.prospeccao_acesso import ErroAcesso
-from raiz.prospeccao_protecao import MarcaExportacao
+from raiz.prospeccao.acesso import ErroAcesso
+from raiz.prospeccao.protecao import MarcaExportacao
 
 AGORA = dt.datetime(2026, 11, 13, 12, tzinfo=dt.UTC)
 CAR = "PA-1504950-" + "A" * 32

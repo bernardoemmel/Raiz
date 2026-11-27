@@ -13,7 +13,7 @@ o revisor interno precisa solicitar essa operação separadamente.
   contrato e sinal; o CAR precisa constar de uma opção vigente de pedido dela. Pedido cancelado ou reserva vencida
   não autoriza acesso. Chave de agente não substitui a sessão da pessoa no upload.
 - `RAIZ_CHAVE_PESSOAL` disponível para cifrar o original. Sem ela, a entrada falha fechada com HTTP 503, antes de
-  gravar qualquer arquivo. Troca de chave segue `raiz/pessoal.py`: manter as antigas para abrir os documentos existentes.
+  gravar qualquer arquivo. Troca de chave segue `raiz/protecao/pessoal.py`: manter as antigas para abrir os documentos existentes.
 - `RAIZ_DOCUMENTOS_DIR` em volume persistente **privado**, com backup cifrado e acesso só ao usuário do serviço.
   Cada empresa tem `empresas/<cliente_id>/documentos.sqlite`, em diretório 0700 e arquivo 0600. O volume não pertence
   ao site, ao Release de dados ou ao histórico aberto. Original e snapshot técnico ficam cifrados no SQLite.

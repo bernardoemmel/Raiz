@@ -12,11 +12,12 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from raiz import RAIZ_REPO, cadt
-from raiz import metadados as M
-from raiz import quantis as Q
+from raiz import RAIZ_REPO
 from raiz import restauracao as R
 from raiz.executor.armazem import ArmazemRelease
+from raiz.medicao import cadt
+from raiz.medicao import quantis as Q
+from raiz.publico import metadados as M
 from scripts import verificar_release_dados as V
 
 CODIGO = RAIZ_REPO

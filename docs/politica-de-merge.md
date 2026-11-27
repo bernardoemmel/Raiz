@@ -15,8 +15,8 @@ sem travar o trabalho do dia a dia.
 - `motor/` inteiro (motor de dados e fila de processamento);
 - `.github/` inteiro (todos os workflows, inclusive CI, processamento, publicação do site e esta trava);
 - código que muda dados publicados: `raiz/funil/`, `raiz/comprometida/`, `raiz/ambiental/`, `raiz/coleta/`,
-  `raiz/catalogo_publico.py`, `raiz/potencial_publico.py`, `raiz/lotes_publicos.py`, `raiz/lote_publicado.py`,
-  `raiz/metadados.py`, `raiz/metadados_lote.py`, `raiz/pacotes_seguros.py`, `raiz/privacidade.py`;
+  `raiz/publico/catalogo.py`, `raiz/publico/potencial.py`, `raiz/lote/publicos.py`, `raiz/lote/publicado.py`,
+  `raiz/publico/metadados.py`, `raiz/lote/metadados.py`, `raiz/publico/pacotes.py`, `raiz/protecao/privacidade.py`;
 - scripts de publicação e de dados privados: `scripts/publicar_*`, `scripts/migrar_*`,
   `scripts/aliviar_dados_privados.py`, `scripts/atualizar_fila_privada.py`, `scripts/reservar_lote.py`,
   `scripts/verificar_release_dados.py`;

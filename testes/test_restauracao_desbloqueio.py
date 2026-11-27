@@ -7,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from raiz import restauracao_desbloqueio as D
+from raiz.restauracao import desbloqueio as D
 
 MODELO = "restauracao-historica+abc"
 

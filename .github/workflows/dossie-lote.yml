@@ -1,7 +1,7 @@
 name: Dossiê executivo do lote
 
 # Município -> dossiê com lotes de restauração por vizinhança, ressalvas, prontidão, checklist do que já foi conferido
-# em dado público, validação humana e anexo dos CARs (raiz/dossie_lote.py, critérios em docs/lote.md). Lê o que o
+# em dado público, validação humana e anexo dos CARs (raiz/lote/dossie.py, critérios em docs/lote.md). Lê o que o
 # processamento já calculou (não refaz o funil) e os limites de projetos de carbono do Release insumos. O resultado
 # (Markdown, PDF, Word e JSON) vai só para o arquivo privado: nada de artifact, nada de log com código de fazenda.
 

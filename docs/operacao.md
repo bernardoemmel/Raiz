@@ -693,7 +693,7 @@ mudar na nuvem (ETag novo), o cache dele é refeito.
 
 ## Valor para quem restaura (desenvolvedor de crédito de carbono)
 
-Calculado pelo produto, fora do motor (raiz/restauracao.py e raiz/restauracao_geo.py), por município, em
+Calculado pelo produto, fora do motor (raiz/restauracao.py e raiz/restauracao/geo.py), por município, em
 `saida/<UF>/desenvolvedor_<mun>.csv`; a carga leva ao banco como complemento `desenvolvedor` e a ficha mostra o bloco
 "Para quem restaura" (sempre com o aviso de estimativa e as faixas P10 a P90).
 
@@ -1262,22 +1262,22 @@ por este controle. O produtor deve manter a coluna e representar fonte ausente p
 
 - Motor/executor: arquiva os originais no destino privado autenticado e valida todos os bytes da projeção
   `publico_basico` antes do primeiro upload aberto da UF. O fluxo legado segue a mesma divisão; não envia o pacote
-  completo ao Release público. `uv run python -m raiz.qualidade_dados dados-entrada` confere as tabelas completas
+  completo ao Release público. `uv run python -m raiz.qualidade.dados dados-entrada` confere as tabelas completas
   para revisão científica, sem autorizar sua exposição. O contrato básico está em `docs/colunas.md`.
 - Vigilância: verifica o conjunto de alertas e o resumo antes de arquivar no destino privado; dados de projeto,
   perdas e marcações também exigem cifra. O #72 retirou a publicação aberta de histórico por CAR.
-- Busca: `uv run python -m raiz.qualidade_busca caminho/busca.sqlite caminho/novidades_DATA.md caminho/novidades_DATA.csv`.
+- Busca: `uv run python -m raiz.qualidade.busca caminho/busca.sqlite caminho/novidades_DATA.md caminho/novidades_DATA.csv`.
   Confere os três arquivos, o esquema e a correspondência dos resultados; recompõe o SQLite aprovado para remover
   restos de linhas apagadas. O workflow executa o portão antes do Release, resumo e issue. Nome rotulado como autor
   não recebe liberação automática. Não foram disparados envios nem issues nesta entrega.
-- Calendário: `python3 -m raiz.qualidade_calendario --pasta dados/calendario` valida os originais `estado.json`,
+- Calendário: `python3 -m raiz.qualidade.calendario --pasta dados/calendario` valida os originais `estado.json`,
   `eventos.json` e `eventos.ics`, sua correspondência e os campos conhecidos antes do upload. O workflow só publica
   quando esse passo teve sucesso, inclusive quando a coleta parcial termina com erro. O site reconstrói JSON/ICS
   a partir dos campos aprovados e revalida o cache; não copia os bytes remotos. O portão do site usa somente a
   biblioteca padrão do Python, sem instalar as dependências científicas no job do front.
-- Rodada do Pará: `raiz.restauracao_rodada.publicar` arquiva lotes, previsões e folhas somente no destino privado;
+- Rodada do Pará: `raiz.restauracao.rodada.publicar` arquiva lotes, previsões e folhas somente no destino privado;
   a visibilidade é conferida antes de cada transferência. Arquivar o original para auditoria/reprocessamento não
-  significa aprovar sua qualidade ou exposição. `raiz.qualidade_rodada` conserva a validação quantitativa do antigo
+  significa aprovar sua qualidade ou exposição. `raiz.qualidade.rodada` conserva a validação quantitativa do antigo
   contrato público e recusa HTML/folhas individuais; esse contrato não reabre o publicador retirado pelo #72.
 
 Os workflows de publicação do site e da busca também usam dependências travadas pelo `uv.lock`, com cache.

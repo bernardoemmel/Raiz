@@ -139,14 +139,14 @@ processados, e olhar os `projetos_nas_lacunas`.
 
 Em Paragominas o Bot Agro montou o lote cruzando carbono, matrícula e gleba pública à mão. Agora o pedido faz sozinho:
 
-1. **Tira a terra já comprometida.** O índice do lote (`raiz/restauracao_catalogo.py`) lê `comprometida_<mun>.csv`
+1. **Tira a terra já comprometida.** O índice do lote (`raiz/restauracao/catalogo.py`) lê `comprometida_<mun>.csv`
    e grava `status_sobreposicao`, `ja_comprometida`, `risco_sobreposicao`, `sobreposicao_ha`,
    `sobreposicao_indicio_ha` e `sobreposicao_projetos` (até 3 IDs públicos, ex.: VCS4681). A consulta
-   (`raiz/restauracao_nacional.py`) tira `ja_comprometida` do lote (com o motivo na trilha de decisões) e conta em
+   (`raiz/restauracao/nacional.py`) tira `ja_comprometida` do lote (com o motivo na trilha de decisões) e conta em
    cada opção as marcadas com risco e as não verificadas. Imóvel sem status fica **nulo**, nunca `false`: não vira
    terra livre. A consulta diz `verificada`, `parcial` (com quantas faltaram) ou `nao_verificada`.
 2. **Refaz a camada quando o pacote do estado não traz.** Antes de indexar cada UF, `completar_comprometida`
-   (`raiz/restauracao_nacional_rodada.py`) refaz `comprometida_<mun>.csv` que falte ou seja de coleta velha, só com
+   (`raiz/restauracao/nacional_rodada.py`) refaz `comprometida_<mun>.csv` que falte ou seja de coleta velha, só com
    `geo_<mun>.parquet` e os limites do Release `insumos` (o `lote-nacional.yml` baixa os dois arquivos). Vale para o
    Pará histórico e estados processados antes da coleta, sem refazer o funil nem as previsões. Coleta nova muda a
    identidade da UF e reindexa sozinha. Sem limites, nada é escrito e o lote sai "não verificado".

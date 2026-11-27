@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from raiz import RAIZ_REPO
-from raiz.licencas import avaliar, falhas, ler_registro, pacotes_cargo, pacotes_npm, pacotes_python
+from raiz.protecao.licencas import avaliar, falhas, ler_registro, pacotes_cargo, pacotes_npm, pacotes_python
 
 
 def main() -> int:

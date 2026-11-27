@@ -10,8 +10,8 @@ import pytest
 from fastapi.testclient import TestClient
 from sentry_sdk.transport import Transport
 
-from raiz.observabilidade import Erros, do_config, evento_seguro
-from raiz.privacidade import FormatadorJSON
+from raiz.protecao.observabilidade import Erros, do_config, evento_seguro
+from raiz.protecao.privacidade import FormatadorJSON
 from testes.test_seguranca_api import app_teste
 
 
@@ -141,7 +141,7 @@ def test_saude_mantem_contrato_e_nao_expoe_erro_de_banco(banco_ok):
 def test_log_http_usa_rota_parametrizada_sem_query_corpo_ou_cabecalho(caplog):
     from fastapi import FastAPI
 
-    from raiz.seguranca_api import SegurancaAPI
+    from raiz.protecao.api import SegurancaAPI
 
     app = FastAPI()
 
@@ -150,7 +150,7 @@ def test_log_http_usa_rota_parametrizada_sem_query_corpo_ou_cabecalho(caplog):
         return {"ok": True}
 
     app.add_middleware(SegurancaAPI)
-    with caplog.at_level(logging.INFO, logger="raiz.seguranca_api"):
+    with caplog.at_level(logging.INFO, logger="raiz.protecao.api"):
         resposta = TestClient(app).get("/arquivo/pessoa@example.invalid?token=segredo")
     registros = [r for r in caplog.records if getattr(r, "evento", None) == "http"]
     assert len(registros) == 1
@@ -176,8 +176,8 @@ def test_lifespan_fecha_contador_e_transporte(monkeypatch):
         def fechar(self):
             fechados.append("glitchtip")
 
-    monkeypatch.setattr("raiz.limites.do_config", lambda _cfg: Contador())
-    monkeypatch.setattr("raiz.observabilidade.do_config", lambda _cfg: Monitor())
+    monkeypatch.setattr("raiz.protecao.limites.do_config", lambda _cfg: Contador())
+    monkeypatch.setattr("raiz.protecao.observabilidade.do_config", lambda _cfg: Monitor())
     with TestClient(criar_app(grafo=object(), whatsapp=False)) as cliente:
         assert cliente.get("/rota-ausente").status_code == 404
     assert fechados == ["valkey", "glitchtip"]

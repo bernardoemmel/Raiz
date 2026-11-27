@@ -70,8 +70,8 @@ def criar_app(
     armazem=None,
 ) -> FastAPI:
     """Com grafo e deps prontos (testes), usa-os; senão abre o checkpointer cifrado no Postgres."""
-    from raiz.limites import do_config as limite_do_config
-    from raiz.observabilidade import do_config as erros_do_config
+    from raiz.protecao.limites import do_config as limite_do_config
+    from raiz.protecao.observabilidade import do_config as erros_do_config
 
     cfg = config()
     limite = limite_do_config(cfg)
@@ -102,7 +102,7 @@ def criar_app(
                 erros.fechar()
 
     app = FastAPI(title="Raíz", lifespan=ciclo)
-    from raiz.privacidade import configurar_log
+    from raiz.protecao.privacidade import configurar_log
 
     configurar_log()
     app.state.engine, app.state.grafo, app.state.deps = engine, grafo, deps
@@ -114,7 +114,7 @@ def criar_app(
     app.state.armazem = armazem  # arquivos do motor (raiz/executor/armazem.py); padrão: o da configuração
 
     if whatsapp:
-        from raiz.whatsapp import criar_cliente, ligar_webhook
+        from raiz.contato.whatsapp import criar_cliente, ligar_webhook
 
         wa = criar_cliente(app)
         app.state.wa = wa
@@ -208,8 +208,8 @@ def criar_app(
 
     @app.post("/mensagens/{mensagem_id}/aprovar", dependencies=seguro)
     def aprovar(mensagem_id: int, corpo: Decisao) -> dict:
-        from raiz.whatsapp import aprovar as _aprovar
-        from raiz.whatsapp import enviador_pywa, enviar_aprovadas, pedidor_localizacao_pywa
+        from raiz.contato.whatsapp import aprovar as _aprovar
+        from raiz.contato.whatsapp import enviador_pywa, enviar_aprovadas, pedidor_localizacao_pywa
 
         try:
             _aprovar(app.state.engine, mensagem_id, corpo.quem)
@@ -224,7 +224,7 @@ def criar_app(
 
     @app.post("/mensagens/{mensagem_id}/descartar", dependencies=seguro)
     def descartar(mensagem_id: int, corpo: Decisao) -> dict:
-        from raiz.whatsapp import descartar as _descartar
+        from raiz.contato.whatsapp import descartar as _descartar
 
         _descartar(app.state.engine, mensagem_id, corpo.quem)
         return {"descartada": mensagem_id}
@@ -298,7 +298,8 @@ def criar_app(
     app.include_router(pedidos_api.roteador_interno(_engine_do_app), dependencies=seguro)
     app.include_router(pedidos_api.roteador_webhook(_engine_do_app))
     # Ficha da terra: sessão individual e créditos pagos, separados do token operacional da API.
-    from raiz import prospeccao_api, prospeccao_webhook
+    from raiz.prospeccao import api as prospeccao_api
+    from raiz.prospeccao import webhook as prospeccao_webhook
 
     app.include_router(prospeccao_api.roteador(_engine_do_app))
     app.include_router(prospeccao_webhook.roteador(_engine_do_app))
@@ -384,8 +385,8 @@ def criar_app(
         exclude_content_types=(*DEFAULT_EXCLUDED_CONTENT_TYPES, "application/vnd.pmtiles"),
     )
     origens = [o.strip() for o in getattr(config(), "api_origens", "").split(",") if o.strip()]
+    from raiz.protecao.api import SegurancaAPI
     from raiz.publica.oauth import acesso_interno
-    from raiz.seguranca_api import SegurancaAPI
 
     app.add_middleware(
         SegurancaAPI,

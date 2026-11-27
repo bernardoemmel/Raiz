@@ -12,7 +12,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.exc import DBAPIError
 
 from raiz import publico
-from raiz import publico_versoes as v
+from raiz.publico import versoes as v
 
 CODIGO = "AB23CD"
 CAR = "PA-1505536-00000000000000000000000000000001"
@@ -164,7 +164,7 @@ def test_snapshot_basico_historico_nao_preenche_com_cadastro_atual(banco):
 
 @pytest.mark.banco
 def test_classificacao_usa_foto_da_rodada_mesmo_se_regras_atuais_divergirem(banco, monkeypatch):
-    from raiz import motivos
+    from raiz.leitura import motivos
 
     def regra_atual_nao_pode_ser_executada(_):
         pytest.fail("Uma versão histórica não pode aplicar as regras atuais do motor")

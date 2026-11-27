@@ -2,7 +2,8 @@
 
 from types import SimpleNamespace
 
-from raiz import banco, cli, pessoal
+from raiz import banco, cli
+from raiz.protecao import pessoal
 from raiz.publica import telemetria, trabalhos, webhooks
 
 

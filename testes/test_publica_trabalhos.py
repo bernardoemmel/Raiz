@@ -395,7 +395,7 @@ def test_salvaguarda_exige_pessoa_e_estorna_sem_gravar_texto_privado(eng, empres
 
 
 def test_eventos_confirmam_junto_dos_estados_e_replay_nao_duplica(eng, empresa, monkeypatch):
-    from raiz.pessoal import Cofre, gerar_chave
+    from raiz.protecao.pessoal import Cofre, gerar_chave
     from raiz.publica import webhooks as W
 
     monkeypatch.setenv("RAIZ_WEBHOOK_HOSTS", "eventos.example.com")

@@ -13,10 +13,10 @@ from fastapi.testclient import TestClient
 from pydantic import SecretStr
 from sqlalchemy import create_engine, text
 
-from raiz import salvaguardas as SG
 from raiz.carga import carregar_pasta
+from raiz.medicao import salvaguardas as SG
 from raiz.pedidos import servico as S
-from raiz.pessoal import gerar_chave
+from raiz.protecao.pessoal import gerar_chave
 from raiz.publica import conta as CT
 from raiz.publica import recibos
 from testes.conftest import AMOSTRA
@@ -59,7 +59,7 @@ def eng(banco_url):
 
 @pytest.fixture(scope="module")
 def chave():
-    import raiz.pessoal as P
+    import raiz.protecao.pessoal as P
 
     k = gerar_chave()
     mp = pytest.MonkeyPatch()

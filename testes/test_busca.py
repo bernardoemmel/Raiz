@@ -20,8 +20,8 @@ from fastapi.testclient import TestClient
 from pydantic import SecretStr
 from sqlalchemy import create_engine, text
 
-from raiz.busca import normalizar_codigo, normalizar_nome, parece_codigo
-from raiz.carga_continua import varrer
+from raiz.carga.continua import varrer
+from raiz.leitura.busca import normalizar_codigo, normalizar_nome, parece_codigo
 from testes.conftest import AMOSTRA
 
 pytestmark = pytest.mark.banco
@@ -129,7 +129,7 @@ def test_busca_ficha_e_404(engine, saida):
         assert f["versao"] == 1 and f["versao_dado"]["rodada"] and f["situacao"]["categoria"]
 
         # não apta: diz por quê, item por item
-        from raiz import motivos
+        from raiz.leitura import motivos
 
         nao = next(x["cod_imovel"] for x in df.to_dict("records") if not motivos.ler(x)["apta"])
         fn = cl.get(f"/imoveis/{nao}/ficha").json()

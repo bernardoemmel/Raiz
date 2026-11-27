@@ -55,7 +55,7 @@ def ver(engine: Engine, token: str, cliente_id: int) -> dict:
 
 def aprovar(engine: Engine, token: str, cliente_id: int) -> dict:
     """Somente pessoa autenticada da empresa; o adaptador HTTP rejeita API keys e OAuth de agente."""
-    from raiz import salvaguardas as SG
+    from raiz.medicao import salvaguardas as SG
 
     if not isinstance(cliente_id, int) or isinstance(cliente_id, bool) or cliente_id <= 0:
         raise ErroAprovacao("entre com uma sessão de pessoa da empresa", 401)

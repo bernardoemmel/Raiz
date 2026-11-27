@@ -20,13 +20,13 @@ from pydantic import ValidationError
 from sqlalchemy import Connection, Engine, text
 from sqlalchemy.exc import DBAPIError
 
+from raiz.medicao.salvaguardas import ErroSalvaguarda
 from raiz.pedidos import servico as S
 from raiz.pedidos.campos import CAMINHOS, METODOS, CamposPedido
 from raiz.publica import conta as CT
 from raiz.publica import webhooks as W
 from raiz.publica.privacidade import sem_dado_pessoal
 from raiz.publica.telemetria import chamada
-from raiz.salvaguardas import ErroSalvaguarda
 
 FERRAMENTAS = frozenset(
     {"consultar_disponibilidade", "comparar_lotes", "acompanhar_contato", "pedir_lote", "preparar_reserva"}

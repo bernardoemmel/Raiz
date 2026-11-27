@@ -8,8 +8,8 @@ import tarfile
 
 import pytest
 
-from raiz import metadados as M
-from raiz import metadados_lote as ML
+from raiz.lote import metadados as ML
+from raiz.publico import metadados as M
 
 mlc = pytest.importorskip("mlcroissant")
 pytest.importorskip("croissant_baker")

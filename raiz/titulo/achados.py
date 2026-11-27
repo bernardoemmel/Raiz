@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass
 
-from raiz.privacidade import mascarar
+from raiz.protecao.privacidade import mascarar
 
 FASES = ("formato", "geometria", "coerencia", "referencia", "cadeia", "regularizacao")
 GRAVIDADES = ("reprova", "confirmar", "info")

@@ -12,7 +12,7 @@ import requests
 
 from raiz.calendario.arquivos import MAX_ESTADO, validar
 from raiz.calendario.modelos import Evento, FonteEstado
-from raiz.privacidade import mascarar
+from raiz.protecao.privacidade import mascarar
 
 ARQUIVOS = ("estado.json", "eventos.json", "eventos.ics")
 

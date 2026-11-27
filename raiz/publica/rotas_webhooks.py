@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 
-from raiz.pessoal import Cofre, SemChavePessoal
+from raiz.protecao.pessoal import Cofre, SemChavePessoal
 from raiz.publica import chaves as K
 from raiz.publica import conta as CT
 from raiz.publica import webhooks as W

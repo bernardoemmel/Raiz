@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.testclient import TestClient
 
-from raiz.seguranca_api import SegurancaAPI
+from raiz.protecao.api import SegurancaAPI
 
 ORIGEM = "https://painel.example.org"
 

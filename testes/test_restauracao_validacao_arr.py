@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from raiz.restauracao_validacao_arr import (
+from raiz.restauracao.validacao_arr import (
     REFERENCIAS,
     avaliar_referencias,
     comparar,

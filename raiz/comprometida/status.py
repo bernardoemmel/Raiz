@@ -35,7 +35,7 @@ from pathlib import Path
 import geopandas as gpd
 import pandas as pd
 
-from raiz import terra_comprometida as tc
+from raiz.terra import comprometida as tc
 
 VERSAO = "comprometida-2026b"
 LIMIAR_HA = 1.0

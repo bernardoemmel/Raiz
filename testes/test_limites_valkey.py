@@ -10,8 +10,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from raiz.limites import LimiteCompartilhado
-from raiz.seguranca_api import SegurancaAPI
+from raiz.protecao.api import SegurancaAPI
+from raiz.protecao.limites import LimiteCompartilhado
 
 
 def _app(backend, **opcoes):
@@ -27,8 +27,8 @@ def _app(backend, **opcoes):
 
 
 def test_contagem_atomica_compartilhada_concorrente_com_log_real():
-    from raiz.logs_seguros import sanitizar_log
-    from raiz.privacidade import configurar_log
+    from raiz.protecao.logs import sanitizar_log
+    from raiz.protecao.privacidade import configurar_log
 
     configurar_log()
     assert "indisponível" not in sanitizar_log("modelo aquecido")

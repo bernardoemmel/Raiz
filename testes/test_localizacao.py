@@ -1,9 +1,9 @@
-"""Plus Code e link do Organic Maps (raiz/localizacao.py). Os casos do Organic Maps são os da suíte dele
+"""Plus Code e link do Organic Maps (raiz/contato/localizacao.py). Os casos do Organic Maps são os da suíte dele
 (libs/ge0/ge0_tests/url_generator_tests.cpp); os do Plus Code, os exemplos da especificação aberta."""
 
 import pytest
 
-from raiz import localizacao as L
+from raiz.contato import localizacao as L
 
 
 @pytest.mark.parametrize(

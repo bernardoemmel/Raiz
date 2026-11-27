@@ -7,7 +7,7 @@ import pytest
 
 from raiz.operacao.healthchecks import Healthchecks
 from raiz.operacao.lotes import lote
-from raiz.privacidade import FormatadorJSON
+from raiz.protecao.privacidade import FormatadorJSON
 
 
 @pytest.mark.parametrize("embargo", [False, True])
