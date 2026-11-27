@@ -10,7 +10,7 @@ from sqlalchemy import create_engine, text
 
 from raiz.executor.armazem import ArmazemLocal, ArmazemRelease
 from raiz.executor.sincronizar import carregar, sincronizar
-from raiz.prospeccao_cobertura import reindexar
+from raiz.prospeccao.cobertura import reindexar
 from testes.conftest import AMOSTRA
 
 
@@ -90,7 +90,7 @@ def test_todas_ufs_nova_uf_e_atualizacao_sem_consulta(eng, tmp_path):
 
 @pytest.mark.banco
 def test_falha_pos_carga_repete_mesma_rodada(eng, tmp_path, monkeypatch):
-    import raiz.carga_continua as C
+    import raiz.carga.continua as C
 
     arm, destino = ArmazemLocal(tmp_path / "privado"), tmp_path / "espelho"
     _publicar(arm, tmp_path, "RN", 2400109)
@@ -134,8 +134,8 @@ def test_backfill_de_rodada_existente_inclui_complementos_sem_recalcular(eng, tm
 
 @pytest.mark.banco
 def test_fonte_nova_reindexa_sem_mudar_csv_e_preserva_transicao(eng, tmp_path):
-    from raiz.carga_continua import varrer
-    from raiz.terra_comprometida import ingerir
+    from raiz.carga.continua import varrer
+    from raiz.terra.comprometida import ingerir
 
     arm, destino = ArmazemLocal(tmp_path / "privado"), tmp_path / "espelho"
     _publicar(arm, tmp_path, "PA", 1504950)
@@ -228,7 +228,7 @@ def test_falha_de_uma_uf_nao_carrega_parcial_nem_bloqueia_as_demais(eng, tmp_pat
 
 @pytest.mark.banco
 def test_reindexacao_falha_retomavel_sem_apagar_versoes(eng, tmp_path, monkeypatch):
-    import raiz.prospeccao_cobertura as C
+    import raiz.prospeccao.cobertura as C
 
     arm, destino = ArmazemLocal(tmp_path / "privado"), tmp_path / "espelho"
     _publicar(arm, tmp_path, "PA", 1504950)
@@ -256,8 +256,8 @@ def test_reindexacao_falha_retomavel_sem_apagar_versoes(eng, tmp_path, monkeypat
 
 def test_manifesto_privado_e_pacotes_sao_refrescados_a_cada_volta(tmp_path, monkeypatch):
     import raiz.aprendizado.importacao as I
-    import raiz.carga_continua as C
-    import raiz.prospeccao_cobertura as P
+    import raiz.carga.continua as C
+    import raiz.prospeccao.cobertura as P
 
     arm = ArmazemRelease("teste/repo", "dados-privados", espelho=tmp_path, privado=True, token="teste")
     estados, frescos, pacotes = {"PA": {}}, [], []

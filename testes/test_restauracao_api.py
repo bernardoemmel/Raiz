@@ -131,7 +131,7 @@ def test_simulador_e_cenarios(cliente):
 
 
 def test_previsao_congelada_real_do_cliente_e_recalibracao(cliente, tmp_path):
-    from raiz.restauracao_aprendizado import comparar, recalibrar
+    from raiz.restauracao.aprendizado import comparar, recalibrar
 
     cl, eng, rodada = cliente
     with eng.connect() as c:

@@ -17,8 +17,9 @@ import shapely
 from rasterio.transform import from_origin
 from shapely.geometry import LineString, Point, box
 
-from raiz import imovel_dados as I
-from raiz import osm, serie_uso, tiles
+from raiz.leitura import imovel as I
+from raiz.leitura import serie as serie_uso
+from raiz.mapa import osm, tiles
 from testes.conftest import AMOSTRA
 
 RES = 0.00026949458523585647  # 30 m, a grade do MapBiomas
@@ -235,8 +236,8 @@ def test_app_com_agua_invalida_do_prodes_nao_derruba_a_ficha(tmp_path):
     import geopandas as gpd
     import shapely
 
-    from raiz import imovel_dados as I
     from raiz.funil import grade
+    from raiz.leitura import imovel as I
 
     imovel = shapely.box(-48.30, -10.30, -48.20, -10.20)
     # "gravata": o rio cruza a si mesmo dentro do imóvel; inválido para o GEOS

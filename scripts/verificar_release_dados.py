@@ -304,7 +304,7 @@ def validar_quantis(caminho, uf, metadados, globais, entrada, *, auxiliares=None
     import pandas as pd
     import pyarrow.parquet as pq
 
-    from raiz import quantis
+    from raiz.medicao import quantis
 
     exigir(metadados.get("exporter_version") == quantis.EXPORTADOR_VERSAO, "versao_exportador_quantis_divergente")
     exigir(metadados.get("reference_date_basis") == quantis.BASE_DATA, "base_temporal_quantis_divergente")
@@ -897,7 +897,7 @@ def _executar_escopo(args, escopo, cache, relatorio, publicador, metadados, arma
         )
         indice = validar_fichas(armazem, arquivos, registrar, metadados, publicador.referencias)
         if privado:
-            from raiz.lote_publicado import eh_manifesto
+            from raiz.lote.publicado import eh_manifesto
 
             for nome in sorted(n for n in arquivos if eh_manifesto(n)):
                 registrar(
@@ -968,7 +968,7 @@ def _executar_escopo(args, escopo, cache, relatorio, publicador, metadados, arma
                     )
 
             def agregado():
-                from raiz.cadt import combinar_estados
+                from raiz.medicao.cadt import combinar_estados
 
                 exigir("cadt_lotes.json" in arquivos, "cadt_global_ausente")
                 exigir(set(cadts) == ufs, "cadt_cobertura_estadual_divergente")
@@ -991,7 +991,7 @@ def _executar_escopo(args, escopo, cache, relatorio, publicador, metadados, arma
 
 def validar_lote_publicado(nome, arquivos, base_url):
     """Reproduz somente a conversão dos produtos publicados; nunca executa o motor."""
-    from raiz import lote_publicado as lote
+    from raiz.lote import publicado as lote
 
     caminho, digest, _ = arquivos[nome]
     manifesto, conferido = lote.ler_manifesto(caminho, nome, base_url=base_url)
@@ -1076,7 +1076,7 @@ def main(argv=None):
         "escopos": {},
     }
     try:
-        from raiz import metadados
+        from raiz.publico import metadados
         from scripts import publicar_metadados as publicador
 
         codigo = subprocess.run(
@@ -1090,12 +1090,12 @@ def main(argv=None):
             for n in (
                 "raiz/executor/armazem.py",
                 "raiz/executor/publicacao_aberta.py",
-                "raiz/metadados.py",
-                "raiz/quantis.py",
-                "raiz/cadt.py",
-                "raiz/lote_publicado.py",
-                "raiz/quantis_lote.py",
-                "raiz/metadados_lote.py",
+                "raiz/publico/metadados.py",
+                "raiz/medicao/quantis.py",
+                "raiz/medicao/cadt.py",
+                "raiz/lote/publicado.py",
+                "raiz/lote/quantis.py",
+                "raiz/lote/metadados.py",
             )
         }
         relatorio["filtro_infraestrutura"] = "scripts/publicar_metadados.py:arquivos_produto"

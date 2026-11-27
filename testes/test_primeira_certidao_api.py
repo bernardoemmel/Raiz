@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from raiz.documentos.certidao import api
 from raiz.documentos.certidao import entrada as E
-from raiz.pessoal import Cofre, gerar_chave
+from raiz.protecao.pessoal import Cofre, gerar_chave
 from testes.test_primeira_certidao import CAR, PDF, chave, modelo, previsao
 
 

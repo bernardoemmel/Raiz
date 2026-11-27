@@ -8,8 +8,8 @@ import tarfile
 
 import pytest
 
-from raiz import lote_publicado as L
 from raiz.executor.armazem import ArmazemRelease
+from raiz.lote import publicado as L
 from scripts import publicar_metadados as P
 from testes.test_quantis_lote import BASE_URL, ORIGINAL, _fixture
 
@@ -185,7 +185,7 @@ def test_verificador_reproduz_derivados_e_recusa_quantidade_adulterada(tmp_path)
 
 
 def test_verificador_confere_membros_do_lote_sem_inventar_versoes_estaduais(tmp_path):
-    from raiz.metadados_lote import croissant_tar_csv
+    from raiz.lote.metadados import croissant_tar_csv
     from scripts import verificar_release_dados as V
 
     m, _, _, pacotes = fontes(tmp_path / "fontes")

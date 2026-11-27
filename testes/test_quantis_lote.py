@@ -13,8 +13,8 @@ import pyarrow.parquet as pq
 import pytest
 import yaml
 
-from raiz import quantis as Q
-from raiz import quantis_lote as L
+from raiz.lote import quantis as L
+from raiz.medicao import quantis as Q
 
 BASE_URL = "release-github://exemplo/raiz/dados-privados/"
 CAR_A = "PA-1500107-" + "A" * 32

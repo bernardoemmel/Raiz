@@ -28,7 +28,7 @@ from mcp.client.streamable_http import streamable_http_client
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
-from raiz import salvaguardas as SG
+from raiz.medicao import salvaguardas as SG
 from raiz.pedidos import oferta as OF
 from raiz.pedidos import servico as S
 from raiz.pedidos.campos import CamposPedido

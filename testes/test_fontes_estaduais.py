@@ -258,7 +258,7 @@ def test_tarefa_estaduais_folha_e_grava_o_csv(tmp_path, monkeypatch):
     ("status", "bloqueia"), [("exclusao", True), ("ressalva", False), ("livre", False), (None, False)]
 )
 def test_oferta_exclusao_estadual_bloqueia(status, bloqueia, monkeypatch):
-    from raiz import salvaguardas
+    from raiz.medicao import salvaguardas
     from raiz.pedidos import oferta as O
 
     monkeypatch.setattr(salvaguardas, "avaliar", lambda li, v=None: {"pode_originar": True})

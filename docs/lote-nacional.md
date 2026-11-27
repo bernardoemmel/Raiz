@@ -24,9 +24,9 @@ de manutenção pelo workflow existente, uma vez por versão da fonte, sem apaga
 Exemplos no ambiente autenticado do arquivo privado:
 
 ```bash
-uv run python -m raiz.restauracao_nacional_rodada --consultar --uf PA
-uv run python -m raiz.restauracao_nacional_rodada --consultar --bioma Cerrado
-uv run python -m raiz.restauracao_nacional_rodada --consultar --brasil --pedido pedido.json
+uv run python -m raiz.restauracao.nacional_rodada --consultar --uf PA
+uv run python -m raiz.restauracao.nacional_rodada --consultar --bioma Cerrado
+uv run python -m raiz.restauracao.nacional_rodada --consultar --brasil --pedido pedido.json
 ```
 
 Sem recorte explícito, a automação publica cada UF disponível, os seis biomas e Brasil. Um pedido por UF inteira
@@ -53,13 +53,13 @@ verificadas em cada opção e devolve `restricoes_nacionais` (situação e motiv
 
 Ordem de publicação: bioma Amazônia, estados da Amazônia Legal, demais estados, demais biomas e Brasil. O ponteiro guarda,
 por consulta, um `resumo` sem CAR (as três opções, a terra em espera e a sobreposição). O passo final do workflow roda
-`python -m raiz.restauracao_nacional_rodada --conferir`: acusa UF, bioma ou Brasil sem consulta, consulta sem as três
+`python -m raiz.restauracao.nacional_rodada --conferir`: acusa UF, bioma ou Brasil sem consulta, consulta sem as três
 opções, e lista os lotes vazios com a terra em espera que os explica.
 
 ## Pacote "lote pronto"
 
 Para cada UF, bioma e Brasil, e para cada opção com fazendas, o workflow gera sozinho um ZIP no arquivo privado
-(`lote_pronto_<opcao>_<sha>.zip`, referenciado no ponteiro em `consultas.<recorte>.lote_pronto`), com `raiz/lote_pronto.py`:
+(`lote_pronto_<opcao>_<sha>.zip`, referenciado no ponteiro em `consultas.<recorte>.lote_pronto`), com `raiz/lote/pronto.py`:
 `cars.csv` (titulares e reservas), `reservas.csv`, `tabela_lote.csv` (ha, créditos P10/P50/P90, custo, TIR, caminho da terra),
 `sobreposicao.csv`, `mapa.svg` e `mapa.geojson` (pontos, sem contorno), um Raio-X em PDF por CAR em `raio-x/` (a ficha da
 página do produtor, pelo mesmo gerador do PDF da ficha, com marca de rastreio da consulta e da opção), `resumo.json`,
@@ -108,7 +108,7 @@ A primeira construção do índice levou 24,58 minutos; é uma atualização de 
 Reprodutor sintético, em diretório novo para impedir resultado em cache:
 
 ```bash
-uv run python -m raiz.restauracao_benchmark --linhas 7000000 --misto --destino /caminho/privado/benchmark
+uv run python -m raiz.restauracao.benchmark --linhas 7000000 --misto --destino /caminho/privado/benchmark
 ```
 
 O arquivo `benchmark.json` registra versão, identidade do catálogo, tempos, memória, cota de CPU e diagnósticos

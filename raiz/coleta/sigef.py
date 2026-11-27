@@ -21,7 +21,7 @@ from raiz.coleta import wfs
 from raiz.coleta.espelho import Diferenca, Espelho, registrar_alertas
 from raiz.coleta.manifesto import carregar
 from raiz.coleta.replicacao import atualizar, estado, evento
-from raiz.logs_seguros import sanitizar_log
+from raiz.protecao.logs import sanitizar_log
 
 FONTE = "sigef_parcelas"
 

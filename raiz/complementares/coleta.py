@@ -631,7 +631,7 @@ def coletar(saida: str | Path, fontes=FONTES, ufs=UFS, s=None, hoje: str | None 
 
 def conferir_sem_documento(pasta: str | Path) -> list:
     """Guarda antes de publicar: procura CPF ou CNPJ em todo arquivo da coleta (parquet lido sem a geometria)."""
-    from raiz.privacidade import varrer_texto
+    from raiz.protecao.privacidade import varrer_texto
 
     achados = []
     for f in sorted(Path(pasta).glob("complementares_*")):

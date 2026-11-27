@@ -20,7 +20,7 @@ from psycopg.rows import dict_row
 from sqlalchemy.engine import make_url
 
 from raiz.config import config
-from raiz.pessoal import _chaves
+from raiz.protecao.pessoal import _chaves
 
 
 def chave_aes(chave_pessoal: str | None = None) -> bytes:

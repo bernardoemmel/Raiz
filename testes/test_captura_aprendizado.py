@@ -9,11 +9,11 @@ import pandas as pd
 import pytest
 from sqlalchemy import create_engine, text
 
-from raiz import flag, rebanho
 from raiz.aprendizado import arquivo_historico as A
 from raiz.aprendizado import reexecucao as R
 from raiz.aprendizado.captura import Captura, sanitizar_entrada
 from raiz.funil import rodar as RD
+from raiz.medicao import flag, rebanho
 from raiz.operacao.healthchecks import Healthchecks
 from testes.test_reexecucao_folds import COD, MUNICIPIO, _dados, _retrato
 

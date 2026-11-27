@@ -2,7 +2,7 @@
 
 ## Entrega de 12/11/2026: cálculo e salvaguardas da rodada 11
 
-Área: `raiz/lote.py`, `raiz/lote_relatorio.py`, `raiz/restauracao*.py`, `raiz/regras/`, testes e documentação.
+Área: `raiz/lote.py`, `raiz/lote/relatorio.py`, `raiz/restauracao*.py`, `raiz/regras/`, testes e documentação.
 Sem alteração na API, no MCP ou no código do front. Exceção autorizada pelo fundador: o teste de complementos
 passa a exigir arquivos obrigatórios, excluir `certidoes_` e aceitar novos arquivos de uma linha por imóvel.
 O workflow novo é a infraestrutura necessária para rodar o pedido no Actions.
@@ -29,7 +29,7 @@ O workflow novo é a infraestrutura necessária para rodar o pedido no Actions.
 
 ## Execução e publicação
 
-O fluxo original `.github/workflows/lote-para.yml`, comando `python -m raiz.restauracao_rodada`, congelou os IDs
+O fluxo original `.github/workflows/lote-para.yml`, comando `python -m raiz.restauracao.rodada`, congelou os IDs
 e hashes dos pacotes `raiz_PA.tar.gz` e `raiz_geo_PA.tar.gz` do Release `dados` e distribuiu 144 municípios por
 15 jobs. Seu publicador público foi desativado na migração descrita abaixo. A continuação protegida confere
 versões e cobertura, monta as três opções e preserva pacotes imutáveis no Release privado; não atualiza o
@@ -61,7 +61,7 @@ Para evitar repetição, não pausar em bloco workflows de outros chats: preserv
 do publicador. A ausência de nome/CPF não torna TIR, risco e crédito por imóvel dados abertos.
 
 Repetir os jobs cancelados pelo mecanismo padrão executaria também o publicador público do commit antigo.
-A continuação usa `.github/workflows/retomar-lote-para.yml` e `raiz/restauracao_retomada.py`: reutiliza a entrada
+A continuação usa `.github/workflows/retomar-lote-para.yml` e `raiz/restauracao/retomada.py`: reutiliza a entrada
 e as dez fatias concluídas a partir dos ZIPs privados `actions-<id>-<nome>.zip` e calcula apenas `00`, `01`, `02`,
 `05` e `12`. Os comprovantes `artifacts-inventario-43289212685.json` e `artifacts-backup-43289212685.json` vinculam
 IDs, execução original, commit de origem, nomes, tamanhos e SHA256; são conferidos antes de aceitar os ZIPs.
@@ -189,7 +189,7 @@ Nenhum valor de credencial foi exposto.
 
 ## Etapa seguinte 1 — diagnóstico das fazendas selecionadas
 
-`raiz/restauracao_desbloqueio.py` gera JSON, CSV, Markdown e HTML com as travas das titulares e reservas,
+`raiz/restauracao/desbloqueio.py` gera JSON, CSV, Markdown e HTML com as travas das titulares e reservas,
 sem misturar imóveis em espera ou áreas de mitigação na contagem do lote. Cada trava traz hectares restauráveis,
 créditos P10/P50/P90, documento, conferência, responsável, fonte e marco de prazo. Dias permanecem nulos quando
 não existe SLA comprovado. Requisitos do projeto e pendências do checklist são separados de sobreposições físicas;
@@ -206,7 +206,7 @@ legado não se transforma em mediana de Monte Carlo e a sentinela `-100` não en
 não vira zero. O teste inclui fazenda de 0,01 ha e a preserva integralmente.
 
 O relatório foi conferido contra os três pacotes históricos do Pará. `lote_relatorio.gravar_lote` também o inclui
-nas próximas gerações. `raiz/restauracao_complementos.py` e `.github/workflows/desbloqueio-lote.yml` permitem
+nas próximas gerações. `raiz/restauracao/complementos.py` e `.github/workflows/desbloqueio-lote.yml` permitem
 publicá-lo como complemento privado sem refazer cálculo financeiro ou otimização: verificam manifesto, SHA256,
 tamanho, resumo, versão e cenário; mantêm a origem e publicam o manifesto derivado somente depois de conferir o
 pacote recuperável. A geração não altera as previsões imutáveis de `restauracao-2026d+a84f9789`.

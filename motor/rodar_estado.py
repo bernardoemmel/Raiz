@@ -832,7 +832,7 @@ def rodar_executor(unidade: str, refazer: set[str], continuacao: int) -> dict:
     GeoTIFF) e publicação com a rodada. Fatia: só os municípios dela; publica relendo o que as outras fatias do mesmo
     estado já publicaram (trava do estado no armazém) e refaz o resumo do estado inteiro."""
     from raiz.executor.armazem import ler_json
-    from raiz.versoes import motor_versao
+    from raiz.medicao.versoes import motor_versao
     uf, i_fatia, k_fatias = S.ler_unidade(unidade)
     fatia = set(S.municipios_da_fatia(uf, i_fatia)) if i_fatia else None
     if fatia is not None:

@@ -8,9 +8,8 @@ import pytest
 from sqlalchemy import event, text
 from sqlalchemy.exc import DBAPIError
 
-from raiz import prospeccao_buscas as buscas
-from raiz import prospeccao_versoes as versoes
-from raiz.prospeccao_acesso import ErroAcesso
+from raiz.prospeccao import buscas, versoes
+from raiz.prospeccao.acesso import ErroAcesso
 from testes.test_prospeccao_buscas import base as base
 
 

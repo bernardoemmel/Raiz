@@ -1,6 +1,6 @@
 """Ferramenta do MCP e função do endpoint da API, prontas para quando o servidor subir.
 
-Mesmo formato de raiz/prospeccao_mcp.py: `ferramentas()` descreve a ferramenta `triar_fazendas` e `executar` produz o
+Mesmo formato de raiz/prospeccao/mcp.py: `ferramentas()` descreve a ferramenta `triar_fazendas` e `executar` produz o
 CallToolResult. O host MCP (raiz/publica/servidor_mcp.py) ainda NÃO a registra: quem decide escopo, preço e limite por
 empresa é o fundador (a triagem usa os dados completos de cada fazenda). O host entrega o contexto OAuth e o callback
 `autorizar`, que aplica conta paga, escopo e auditoria; nunca passar um callback vazio em produção.

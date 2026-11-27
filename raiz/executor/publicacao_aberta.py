@@ -85,7 +85,7 @@ def _numero(v) -> float | None:
 
 def projetar_csvs(uf: str, csvs: dict[str, bytes]) -> dict[str, bytes]:
     """Gera arquivos novos, sem copiar dicionários ou colunas privadas para a saída."""
-    from raiz.motivos import ler
+    from raiz.leitura.motivos import ler
 
     out = {}
     for nome, dados in csvs.items():
@@ -225,7 +225,7 @@ def validar_asset_publico(nome: str, dados: bytes, *, repo: str = "bernardoemmel
         validar_status_publico(dados)
         return
     if nome == "croissant.json" or nome.startswith("croissant_"):
-        from raiz.metadados import validar_ficha_publica
+        from raiz.publico.metadados import validar_ficha_publica
 
         validar_ficha_publica(nome, dados, repo=repo, tag=tag)
         return
@@ -247,7 +247,7 @@ def validar_asset_publico(nome: str, dados: bytes, *, repo: str = "bernardoemmel
                 raise ValueError("estado sem marca de projeção")
             if "processamento" in info and info["processamento"] != projetada.get("processamento"):
                 raise ValueError("processamento público contém campos não permitidos ou observação inválida")
-            from raiz.metadados import base_release
+            from raiz.publico.metadados import base_release
 
             base = base_release(repo, tag, escopo=ESCOPO).rstrip("/")
             if info.get("url") != f"{base}/raiz_{uf}.tar.gz":

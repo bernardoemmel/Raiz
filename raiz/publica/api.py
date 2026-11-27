@@ -473,7 +473,7 @@ def criar(engine_de: Callable[[Request], Any], verificador=None) -> FastAPI:
     def entrar_conta(request: Request, email: Annotated[str, Body(embed=True, min_length=3, max_length=254)]):
         from sqlalchemy import text
 
-        from raiz.pessoal import Cofre
+        from raiz.protecao.pessoal import Cofre
         from raiz.publica.rotas_agentes import base_publica
 
         if S.ENVIO_LINK is None:
@@ -653,7 +653,7 @@ def criar(engine_de: Callable[[Request], Any], verificador=None) -> FastAPI:
     def solicitar_revisao(
         pedido_id: Pid, request: Request, a: Pessoa, cod_imovel: Annotated[str, Body()], motivo: Annotated[str, Body()]
     ) -> JSONResponse:
-        from raiz import salvaguardas as SG
+        from raiz.medicao import salvaguardas as SG
 
         CT.exigir_liberacao(engine_de(request), a.cliente_id)
         return ok(AP.revisao(SG.solicitar_revisao(engine_de(request), pedido_id, a.cliente_id, cod_imovel, motivo)))
@@ -661,7 +661,7 @@ def criar(engine_de: Callable[[Request], Any], verificador=None) -> FastAPI:
     @app.get("/pedidos/{pedido_id}/revisoes", tags=["Pedido de lote"])
     @limiter.shared_limit(LIMITE, scope="empresa")
     def revisoes(pedido_id: Pid, request: Request, a: Pessoa) -> JSONResponse:
-        from raiz import salvaguardas as SG
+        from raiz.medicao import salvaguardas as SG
 
         CT.exigir_liberacao(engine_de(request), a.cliente_id)
         return ok([AP.revisao(r) for r in SG.listar_revisoes(engine_de(request), pedido_id, a.cliente_id)])
@@ -752,7 +752,7 @@ def criar(engine_de: Callable[[Request], Any], verificador=None) -> FastAPI:
     def entrar_aprovacao(token: str, request: Request, email: Annotated[str, Body(embed=True)]):
         from sqlalchemy import text
 
-        from raiz.pessoal import Cofre
+        from raiz.protecao.pessoal import Cofre
         from raiz.publica.rotas_agentes import base_publica
 
         if S.ENVIO_LINK is None:
@@ -791,8 +791,8 @@ def criar(engine_de: Callable[[Request], Any], verificador=None) -> FastAPI:
     @limiter.shared_limit(LIMITE, scope="empresa")
     def consultar_ficha(cod_imovel: str, request: Request, a: Acesso) -> JSONResponse:
         """Mesma ficha da prospecção, com fontes, datas e ausências. Não compra nem desbloqueia acesso."""
-        from raiz import prospeccao_servico
-        from raiz.prospeccao_acesso import ErroAcesso
+        from raiz.prospeccao import servico as prospeccao_servico
+        from raiz.prospeccao.acesso import ErroAcesso
         from raiz.publica.rotas_agentes import exigir_escopo
 
         eng = engine_de(request)

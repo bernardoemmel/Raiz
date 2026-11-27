@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import pandas as pd
 import pytest
 
-from raiz import restauracao_rodada as RR
+from raiz.restauracao import rodada as RR
 
 
 def test_cobertura_exige_municipio_vazio_documentado(tmp_path):
@@ -204,8 +204,8 @@ def test_publicacao_recusa_destino_aberto_antes_primeiro_upload(tmp_path, monkey
 
 
 def test_portao_publico_reprova_manifesto_incompleto(tmp_path):
-    from raiz.qualidade_dados import ErroQualidade
-    from raiz.qualidade_rodada import validar_publicacao
+    from raiz.qualidade.dados import ErroQualidade
+    from raiz.qualidade.rodada import validar_publicacao
     from testes.test_qualidade_rodada import montar
 
     pacotes, referencias, _ = montar(tmp_path)

@@ -7,8 +7,8 @@ import pytest
 from pydantic import ValidationError
 from sqlalchemy import create_engine, text
 
-from raiz.busca import FiltrosProspeccao, buscar_prospeccao
-from raiz.prospeccao_acesso import ErroAcesso
+from raiz.leitura.busca import FiltrosProspeccao, buscar_prospeccao
+from raiz.prospeccao.acesso import ErroAcesso
 
 
 def _liberar(engine, cliente, *codigos):

@@ -33,7 +33,7 @@ def das_pastas(codigos: list[str], pasta: str | Path) -> dict[str, dict]:
 
 def do_banco(codigos: list[str], engine) -> dict[str, dict]:
     from raiz.front_api import imoveis_do_municipio
-    from raiz.privacidade import remover_colunas_pessoais  # noqa: F401  (a linha do banco já vem sem pessoais)
+    from raiz.protecao.privacidade import remover_colunas_pessoais  # noqa: F401  (a linha do banco já vem sem pessoais)
 
     out: dict[str, dict] = {}
     for (_uf, cod), so in sorted(_por_municipio(codigos).items()):

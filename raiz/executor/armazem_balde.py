@@ -275,7 +275,7 @@ class ArmazemBalde(ArmazemRelease):
             raise FalhaHTTPPrivada(int(status or 0), "upload") from None
         with self._digests_trava:
             self._digests[(self.cru.prefixo + nome, str(r.get("ETag", "")).strip('"'))] = f"sha256:{sha}"
-        from raiz.atestacao import registrar
+        from raiz.publico.atestacao import registrar
 
         registrar(nome, dados, privado=self.privado)
 

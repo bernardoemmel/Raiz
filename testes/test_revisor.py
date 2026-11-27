@@ -1,4 +1,4 @@
-"""Revisor de estilo e legibilidade (raiz/revisor.py) contra um servidor do LanguageTool falso, com respostas no
+"""Revisor de estilo e legibilidade (raiz/contato/revisor.py) contra um servidor do LanguageTool falso, com respostas no
 formato da API v2: só os avisos de estilo ficam, servidor fora do ar não trava a mensagem e sem URL não chama nada."""
 
 import os
@@ -6,7 +6,7 @@ import os
 import httpx
 import pytest
 
-from raiz import revisor
+from raiz.contato import revisor
 
 TEXTO = "Em virtude do fato de que a área é grande, ele subiu para cima. A Raíz manda."
 PLEONASMO = TEXTO.index("subiu para cima")

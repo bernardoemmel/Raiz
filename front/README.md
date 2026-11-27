@@ -211,7 +211,7 @@ trocar), `POST /pedidos/{id}/solicitar-interesse`, `GET /pedidos/{id}/andamento`
 `GET /pedidos/{id}/reserva`, com o token da sessão no cabeçalho. Com `VITE_RAIZ_API`, as telas falam com essas rotas.
 
 Sem API, o front salva os critérios no navegador e mostra a cobertura agregada por estado e município.
-O workflow projeta o manifesto privado com `python -m raiz.lotes_publicos`, usando token somente nesse passo.
+O workflow projeta o manifesto privado com `python -m raiz.lote.publicos`, usando token somente nesse passo.
 Somente o contrato `publico_lotes` v1 vai para `dados/lotes-publicos/lote_PA_central_r11.json`: três resumos
 com créditos P10/P50/P90, hectares, fazendas (titulares e reservas), custo médio e meta com terra documentada.
 Não baixa pacotes individuais. Build e navegador reaplicam uma lista positiva, sem TIR, CAR, desenhos, travas
@@ -243,7 +243,7 @@ A simulação antiga continua exportada somente para testes explícitos, sem ser
   10 anos. Linha sem coluna no motor some e volta quando a coluna chegar; a renda entra com a etapa E3.
 - **Comparações:** campo de futebol de 105 × 68 m; metano de boi pelo fator do IPCC (56 kg de CH₄ por cabeça por ano
   × 27); posição e índice contra o município no método do Census Reporter.
-- **Privacidade:** colunas pessoais saem na leitura (mesma regra de `raiz/privacidade.py`) e todo texto passa pela
+- **Privacidade:** colunas pessoais saem na leitura (mesma regra de `raiz/protecao/privacidade.py`) e todo texto passa pela
   máscara de CPF/CNPJ. Nenhum nome aparece nas telas.
 
 ## Leveza da ficha do produtor

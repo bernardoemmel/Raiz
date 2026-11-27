@@ -216,7 +216,7 @@ def test_checkpoint_nao_chama_publicador_croissant_cadt_ou_validador_retrato(tmp
     original = builtins.__import__
 
     def sem_produto(nome, *args, **kwargs):
-        if nome in {"raiz.metadados", "raiz.cadt", "raiz.aprendizado.retratos"}:
+        if nome in {"raiz.publico.metadados", "raiz.medicao.cadt", "raiz.aprendizado.retratos"}:
             pytest.fail("checkpoint não pode depender de validação do produto")
         return original(nome, *args, **kwargs)
 

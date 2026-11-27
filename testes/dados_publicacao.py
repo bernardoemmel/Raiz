@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-from raiz.qualidade_dados import OBRIGATORIAS
+from raiz.qualidade.dados import OBRIGATORIAS
 
 
 def csv_contrato(tipo, valores):

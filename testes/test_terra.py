@@ -11,8 +11,8 @@ import pandas as pd
 import pytest
 import shapely
 
-from raiz import imovel_dados as I
 from raiz import terra as T
+from raiz.leitura import imovel as I
 from testes.conftest import AMOSTRA
 
 
@@ -189,7 +189,7 @@ def test_terra_publica_da_uf(tmp_path, monkeypatch):
     import rasterio
     from rasterio.transform import from_origin
 
-    from raiz import terra_publica as TP
+    from raiz.terra import publica as TP
 
     res = 0.00026949458523585647
     n = 300
@@ -226,7 +226,7 @@ def test_terra_publica_da_uf(tmp_path, monkeypatch):
 def test_conferir_editais_guarda_data_e_link(tmp_path):
     import httpx
 
-    from raiz import terra_publica as TP
+    from raiz.terra import publica as TP
 
     paginas = {
         "www.gov.br": '<a href="/florestal/edital-flona-x.pdf">Edital de concessão da Flona X</a>'

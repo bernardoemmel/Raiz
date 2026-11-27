@@ -98,9 +98,9 @@ várias observações independentes. Nesta etapa ARR, nenhum coeficiente de capt
 ## Reprodução
 
 ```bash
-uv run python -m raiz.restauracao_validacao_arr referencias /caminho/privado/comparacoes-arr
-uv run python -m raiz.restauracao_validacao_arr normalizar-verra linhas-issuances.json periodos.json
-uv run python -m raiz.restauracao_validacao_arr comparar previsao.json observacao.json /caminho/privado/comparacoes-arr
+uv run python -m raiz.restauracao.validacao_arr referencias /caminho/privado/comparacoes-arr
+uv run python -m raiz.restauracao.validacao_arr normalizar-verra linhas-issuances.json periodos.json
+uv run python -m raiz.restauracao.validacao_arr comparar previsao.json observacao.json /caminho/privado/comparacoes-arr
 ```
 
 O primeiro comando registra três confrontações, um diagnóstico e uma reconciliação

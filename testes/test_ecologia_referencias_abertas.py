@@ -1,7 +1,7 @@
 import pytest
 
-from raiz import restauracao_ecologia as E
-from raiz import restauracao_ecologia_regional as R
+from raiz.restauracao import ecologia as E
+from raiz.restauracao import ecologia_regional as R
 
 
 def test_referencias_nao_viram_especies_totais_ou_arvores_distintas():

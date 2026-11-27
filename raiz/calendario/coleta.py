@@ -24,12 +24,12 @@ import requests
 import yaml
 from bs4 import BeautifulSoup
 
-from raiz import qualidade_calendario as Q
 from raiz.calendario import atos_pdf, catalogo, diario_pa, diarios, leiloes_abertos, ocr_pdf
 from raiz.calendario.modelos import CAR, SIGEF, UFS, Evento, FonteEstado, identificador, normalizar_car, url_publica
 from raiz.calendario.processo_limitado import executar
 from raiz.documentos.busca import http
 from raiz.documentos.certidao.regras import normalizar_cns, normalizar_matricula
+from raiz.qualidade import calendario as Q
 
 MANIFESTO = Path(__file__).with_name("fontes.yaml")
 MAX_BYTES = 64 * 1024 * 1024

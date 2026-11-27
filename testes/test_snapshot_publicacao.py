@@ -114,7 +114,7 @@ def test_tar_ficha_quantis_cadt_e_projecao_usam_mesmo_conjunto(tmp_path, monkeyp
                 original.por_bytes(f"saida/RN/{tipo}_2400703.csv", b"cod_imovel,ha\nCAR-B,2\n")
         return pacote
 
-    from raiz import cadt, quantis
+    from raiz.medicao import cadt, quantis
 
     q_original, c_original = quantis.quantis_uf, cadt.cadt_uf
 

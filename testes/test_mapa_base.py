@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
-from raiz import mapa_base
+from raiz.mapa import base as mapa_base
 
 
 @pytest.fixture

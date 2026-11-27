@@ -10,9 +10,8 @@ from mcp.server.auth.middleware.bearer_auth import AuthenticatedUser
 from mcp.server.auth.provider import AccessToken
 from sqlalchemy import text
 
-from raiz import prospeccao_acesso as acesso
-from raiz import prospeccao_servico as servico
 from raiz.pedidos import servico as pedidos
+from raiz.prospeccao import acesso, servico
 from raiz.publica import conta
 from raiz.publica.servidor_mcp import ApiRaiz, criar_servidor
 from testes.test_publica_banco import _app, _h, cl, cofre, empresa, eng  # noqa: F401

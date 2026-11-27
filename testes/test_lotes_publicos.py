@@ -7,7 +7,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from raiz.lotes_publicos import CAMINHOS, OPCOES, baixar_resumo, projetar
+from raiz.lote.publicos import CAMINHOS, OPCOES, baixar_resumo, projetar
 
 
 def manifesto():
@@ -196,7 +196,7 @@ def ponteiro():
 
 
 def test_nacional_lista_positiva_por_uf_bioma_e_brasil():
-    from raiz.lotes_publicos import projetar_nacional
+    from raiz.lote.publicos import projetar_nacional
 
     p = projetar_nacional(ponteiro(), "2026-11-16T20:00:00Z")
     assert p["estado"] == "publicado" and p["contrato"] == "publico_lotes_nacional"
@@ -219,14 +219,14 @@ def test_nacional_lista_positiva_por_uf_bioma_e_brasil():
 
 
 def test_nacional_lote_vazio_mostra_a_terra_em_espera_que_o_explica():
-    from raiz.lotes_publicos import projetar_nacional
+    from raiz.lote.publicos import projetar_nacional
 
     ba = next(r for r in projetar_nacional(ponteiro(), "2026-11-16T20:00:00Z")["recortes"] if r["nome"] == "BA")
     assert ba["vazio"] is True and ba["terra_em_espera"]["fazendas"] == 300
 
 
 def test_nacional_esconde_medida_de_grupo_pequeno_e_so_aceita_situacao_conhecida():
-    from raiz.lotes_publicos import projetar_nacional
+    from raiz.lote.publicos import projetar_nacional
 
     pt = ponteiro()
     pt["consultas"]["PA"]["resumo"]["opcoes"]["barata"] = _opcao(fazendas=4, sob="qualquer-coisa")
@@ -237,7 +237,7 @@ def test_nacional_esconde_medida_de_grupo_pequeno_e_so_aceita_situacao_conhecida
 
 
 def test_nacional_ponteiro_fora_do_contrato_e_ausente():
-    from raiz.lotes_publicos import baixar_nacional, projetar_nacional
+    from raiz.lote.publicos import baixar_nacional, projetar_nacional
 
     with pytest.raises(ValueError):
         projetar_nacional({"acesso": "publico", "consultas": {}}, "2026-11-16T20:00:00Z")
@@ -251,10 +251,10 @@ def test_nacional_ponteiro_fora_do_contrato_e_ausente():
 
 def test_nacional_acompanha_o_formato_real_do_ponteiro():
     """O resumo que o ponteiro grava (resumo_consulta) é o que a projeção lê."""
-    from raiz.lotes_publicos import BIOMAS, UFS, projetar_nacional
-    from raiz.restauracao_nacional import BIOMAS as B
-    from raiz.restauracao_nacional import UFS as U
-    from raiz.restauracao_nacional_rodada import resumo_consulta
+    from raiz.lote.publicos import BIOMAS, UFS, projetar_nacional
+    from raiz.restauracao.nacional import BIOMAS as B
+    from raiz.restauracao.nacional import UFS as U
+    from raiz.restauracao.nacional_rodada import resumo_consulta
 
     assert (UFS, BIOMAS) == (U, B)
     resultado = {

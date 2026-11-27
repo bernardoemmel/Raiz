@@ -5,10 +5,10 @@
     direto  raiz_direto.direto (YbYrá e GPW direto dos arquivos públicos)      -> direto_<mun>.csv
     mapbiomas raiz_mapbiomas.por_imovel (API da Plataforma, colunas mb_*)       -> mapbiomas_<mun>.csv
     extras_direto raiz_extras_direto.municipio (JRC TMF e causas da perda)      -> extras_direto_<mun>.csv
-    flag    raiz.flag.calcular_municipio (meta FLAG pela GHG LSR, fora do motor)   -> flag_<mun>.csv
+    flag    raiz.medicao.flag.calcular_municipio (meta FLAG pela GHG LSR, fora do motor)   -> flag_<mun>.csv
     terra   raiz.terra (caminho da terra e risco, fora do motor)                   -> terra_<mun>.csv
-    ficha   raiz.imovel_dados (design v1 do front: colunas e camadas no imóvel)   -> ficha_, camadas_<mun>
-    rebanho raiz.rebanho (rebanho por fazenda pela PPM e metano, E4, fora do motor) -> rebanho_<mun>.csv
+    ficha   raiz.leitura.imovel (design v1 do front: colunas e camadas no imóvel)   -> ficha_, camadas_<mun>
+    rebanho raiz.medicao.rebanho (rebanho por fazenda pela PPM e metano, E4, fora do motor) -> rebanho_<mun>.csv
     desenvolvedor raiz.restauracao (valor para quem restaura, fora do motor)      -> desenvolvedor_<mun>.csv
     carga   raiz.carga.carregar_municipio + congelamento das previsões (versão do motor confirmada)
 
@@ -203,7 +203,7 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
         reg.detalhe.update(imoveis=len(t), tmf_ano=X.TMF_ANO, com_causa=int(t.causa_perda.between(1, 7).sum()))
 
     def flag(reg):
-        from raiz import flag as F
+        from raiz.medicao import flag as F
 
         f = pasta / f"flag_{cod}.csv"
         if f.exists() and not op.refazer and F.versao_do_arquivo(f) == F.versao():
@@ -235,12 +235,12 @@ def rodar_municipio(cod: int, op: Opcoes, hc=None) -> dict:
         reg.detalhe.update(TT.escrever_municipio(pasta, cod), versao=TT.versao())
 
     def ficha(reg):
-        from raiz.imovel_dados import escrever_municipio
+        from raiz.leitura.imovel import escrever_municipio
 
         reg.detalhe.update(escrever_municipio(pasta, cod, Path("cache")))
 
     def rebanho(reg):
-        from raiz import rebanho as RB
+        from raiz.medicao import rebanho as RB
 
         f = pasta / f"rebanho_{cod}.csv"
         if f.exists() and not op.refazer and RB.versao_do_arquivo(f) == RB.versao():

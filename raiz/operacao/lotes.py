@@ -16,8 +16,8 @@ from pathlib import Path
 from sqlalchemy import Engine, text
 
 from raiz import RAIZ_REPO
-from raiz.logs_seguros import sanitizar_estrutura, sanitizar_log
 from raiz.operacao.healthchecks import Healthchecks
+from raiz.protecao.logs import sanitizar_estrutura, sanitizar_log
 
 log = logging.getLogger(__name__)
 

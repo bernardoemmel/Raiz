@@ -59,6 +59,6 @@ vem de `comprometida_<mun>.csv` e, sem ele, o motivo diz "sobreposição com pro
 A mesma função (`raiz.triagem_desenvolvedor.mcp.triar_codigos`) é o endpoint **`POST /triagem/desenvolvedor`**
 (`raiz/api.py`, token operacional `RAIZ_API_TOKEN`, corpo `{"codigos_car": [...]}`, resposta com `linhas`, `resumo` e
 `codigos_invalidos`) e a ferramenta **`triar_fazendas`** (`ferramentas()` e `executar()` no formato de
-`raiz/prospeccao_mcp.py`, até 200 códigos por chamada). **A ferramenta ainda não está registrada em
+`raiz/prospeccao/mcp.py`, até 200 códigos por chamada). **A ferramenta ainda não está registrada em
 `raiz/publica/servidor_mcp.py`**: escopo, preço e limite por empresa são decisão do fundador, porque a triagem usa os
 dados completos de cada fazenda; o host passa o callback `autorizar` (conta paga, escopo, auditoria).

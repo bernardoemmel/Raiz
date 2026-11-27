@@ -6,7 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from raiz import restauracao as R
-from raiz import salvaguardas as S
+from raiz.medicao import salvaguardas as S
 from raiz.pedidos import oferta as O
 
 EVIDENCIA = {"sha256": "a" * 64, "data": "2026-01-01"}

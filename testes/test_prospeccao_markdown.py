@@ -4,7 +4,9 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
-from raiz import api, prospeccao_acesso, prospeccao_api, publico
+from raiz import api, publico
+from raiz.prospeccao import acesso as prospeccao_acesso
+from raiz.prospeccao import api as prospeccao_api
 
 CAR = "PA-1504950-" + "A" * 32
 

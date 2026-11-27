@@ -24,8 +24,8 @@ from raiz.documentos import aprendizado, config, tabelas
 from raiz.documentos.armazem import Armazem, agora
 from raiz.documentos.certidao import leitor
 from raiz.documentos.claude import LeitorClaude
-from raiz.pessoal import Cofre, SemChavePessoal
-from raiz.privacidade import varrer_texto
+from raiz.protecao.pessoal import Cofre, SemChavePessoal
+from raiz.protecao.privacidade import varrer_texto
 
 MAX_BYTES = 20 * 1024 * 1024
 MAX_PAGINAS = 100

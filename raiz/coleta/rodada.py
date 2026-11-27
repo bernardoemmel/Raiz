@@ -177,7 +177,7 @@ def sincronizar_historico(
     """Leva ao histórico (scd2) todo espelho de município diferente do que já está lá (hash do arquivo em
     coleta.replicacao.hash_conteudo). Pega também carga que falhou numa rodada anterior. Devolve quantos carregou."""
     from raiz.coleta.replicacao import atualizar, estado
-    from raiz.versoes import sha256_arquivo
+    from raiz.medicao.versoes import sha256_arquivo
 
     n = 0
     for cod in cods:

@@ -5,11 +5,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from raiz import restauracao_catalogo as C
-from raiz import restauracao_nacional as N
-from raiz import restauracao_nacional_rodada as A
 from raiz.executor.transferencia_privada import empacotar, extrair
 from raiz.pedidos.campos import CamposPedido
+from raiz.restauracao import catalogo as C
+from raiz.restauracao import nacional as N
+from raiz.restauracao import nacional_rodada as A
 from scripts import reservar_lote as V
 from testes.test_restauracao_catalogo import criar_fonte, indexar
 from testes.test_restauracao_nacional_fontes import Armazem
@@ -118,7 +118,7 @@ def test_preco_diferente_nao_reusa_tir_da_previsao(cronograma):
 
 
 def test_conferir_consultas_aponta_faltas_e_lotes_vazios():
-    from raiz import restauracao_nacional_rodada as RR
+    from raiz.restauracao import nacional_rodada as RR
 
     op = {"fazendas": 2, "pequenas": 2, "hectares": 4.0, "creditos": {}, "fecha_meta": True, "sobreposicao": "x"}
     vazio = {**op, "fazendas": 0}

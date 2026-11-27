@@ -21,11 +21,11 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
 from raiz import RAIZ_REPO
-from raiz import salvaguardas as SG
 from raiz.banco import desfazer, migrar
 from raiz.carga import carregar_pasta
+from raiz.medicao import salvaguardas as SG
 from raiz.pedidos import servico
-from raiz.pessoal import gerar_chave
+from raiz.protecao.pessoal import gerar_chave
 
 
 def banco():

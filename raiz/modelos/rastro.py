@@ -13,8 +13,8 @@ from functools import lru_cache
 from typing import Any
 
 from raiz.config import config
-from raiz.logs_seguros import sanitizar_estrutura
 from raiz.modelos.base import Pedido, Resposta
+from raiz.protecao.logs import sanitizar_estrutura
 
 log = logging.getLogger(__name__)
 

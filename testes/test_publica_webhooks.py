@@ -7,7 +7,7 @@ import uuid
 import pytest
 from sqlalchemy import create_engine, text
 
-from raiz.pessoal import Cofre, gerar_chave
+from raiz.protecao.pessoal import Cofre, gerar_chave
 from raiz.publica import webhooks as W
 
 SEGREDO = "whsec_MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE="

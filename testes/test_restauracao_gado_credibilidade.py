@@ -1,8 +1,8 @@
 import pytest
 
-from raiz import restauracao_credibilidade as C
-from raiz import restauracao_evidencias as E
-from raiz import restauracao_gado as G
+from raiz.restauracao import credibilidade as C
+from raiz.restauracao import evidencias as E
+from raiz.restauracao import gado as G
 
 
 def test_embrapa_periodo_seco_nao_confunde_ingestao_ou_cabecas_com_ua():

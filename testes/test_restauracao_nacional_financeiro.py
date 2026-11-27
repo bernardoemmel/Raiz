@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 from raiz import restauracao as R
-from raiz import restauracao_nacional_financeiro as F
+from raiz.restauracao import nacional_financeiro as F
 
 
 def preparar(tmp_path, cenario="central_r11"):

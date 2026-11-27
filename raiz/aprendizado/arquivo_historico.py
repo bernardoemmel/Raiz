@@ -20,7 +20,7 @@ import pandas as pd
 from sqlalchemy import Connection, text
 
 from raiz.aprendizado.reexecucao import FONTES, FONTES_MOTOR, Fonte, HistoricoInsuficiente
-from raiz.privacidade import mascarar
+from raiz.protecao.privacidade import mascarar
 
 ESQUEMA = "historico_modelos"
 NUMEROS = {"m_fiscal", "year", "anodetec", "pasto_ha", "secundaria_ha", "pasto_ate1km_ha"}

@@ -7,11 +7,11 @@ import zipfile
 import pandas as pd
 import pytest
 
-from raiz import lote_pronto as LP
-from raiz import restauracao_catalogo as C
-from raiz import restauracao_nacional as N
-from raiz import restauracao_selecao as S
+from raiz.lote import pronto as LP
 from raiz.pedidos.campos import CamposPedido
+from raiz.restauracao import catalogo as C
+from raiz.restauracao import nacional as N
+from raiz.restauracao import selecao as S
 from testes.test_restauracao_catalogo import criar_fonte, indexar
 
 
@@ -70,7 +70,7 @@ def test_situacao_de_sobreposicao_e_status_por_fazenda():
 
 
 def test_marca_do_lote_e_valida_e_estavel():
-    from raiz.prospeccao_protecao import validar_marca
+    from raiz.prospeccao.protecao import validar_marca
 
     m = LP.marca_do_lote("abc", "barata")
     validar_marca(m)

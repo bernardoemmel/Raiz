@@ -2,7 +2,7 @@ import copy
 
 import pytest
 
-from raiz import restauracao_ecologia as E
+from raiz.restauracao import ecologia as E
 
 
 def _local():

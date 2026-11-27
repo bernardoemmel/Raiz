@@ -14,8 +14,8 @@ import pandas as pd
 import pytest
 import yaml
 
-from raiz import restauracao_retomada as RT
-from raiz import restauracao_rodada as RR
+from raiz.restauracao import retomada as RT
+from raiz.restauracao import rodada as RR
 
 
 @pytest.fixture(autouse=True)

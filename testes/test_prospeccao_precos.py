@@ -6,9 +6,9 @@ import math
 import pytest
 from pydantic import ValidationError
 
-from raiz import prospeccao_acesso as A
-from raiz import prospeccao_precos as P
 from raiz.pedidos import pix
+from raiz.prospeccao import acesso as A
+from raiz.prospeccao import precos as P
 
 
 def test_tres_modalidades_propostas_sem_preco_e_assinatura_sem_cobranca(monkeypatch):

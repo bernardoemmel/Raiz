@@ -57,7 +57,7 @@ services:
       - "127.0.0.1:8080:8080"
 
   # Revisor de estilo e legibilidade do português: LanguageTool 6.6 (LGPL-2.1, só como serviço no servidor), chamado
-  # antes de cada mensagem ao dono (raiz/revisor.py). RAIZ_LANGUAGETOOL_URL=http://localhost:8010 no .env.
+  # antes de cada mensagem ao dono (raiz/contato/revisor.py). RAIZ_LANGUAGETOOL_URL=http://localhost:8010 no .env.
   revisor:
     build: ./languagetool
     restart: unless-stopped

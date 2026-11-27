@@ -1,6 +1,6 @@
 """Privacidade na vigilância: CPF e CNPJ sempre mascarados, nenhuma coluna pessoal, nenhum nome.
 
-Mesma regra de raiz/privacidade.py (back-end) e de front/compartilhado/privacidade.ts: máscara ***.456.789-** e
+Mesma regra de raiz/protecao/privacidade.py (back-end) e de front/compartilhado/privacidade.ts: máscara ***.456.789-** e
 **.345.678/****-**, aceita o CNPJ alfanumérico (IN RFB 2.229/2024); sem pontuação, só mascara quando os dígitos
 verificadores batem (para não estragar números comuns nem o código do CAR). Na dúvida, a coluna sai.
 """

@@ -53,12 +53,12 @@ histórico de infração.
 
 ## No lote
 
-- **Lote nacional** (`raiz/restauracao_nacional.py`, `lote-nacional.yml`): o índice traz `restricao_nacional`,
+- **Lote nacional** (`raiz/restauracao/nacional.py`, `lote-nacional.yml`): o índice traz `restricao_nacional`,
   `restricao_exclusao`, `restricao_ressalva` e `restricao_motivos` (nulo = não verificado). A rodada refaz
   `restricoes_<mun>.csv` que falte ou esteja velho (`completar_restricoes`, com a coleta do Release `insumos`), a
   consulta tira as exclusões (o motivo vai para a decisão gravada), conta ressalvas e não verificadas em cada opção e
   devolve `restricoes_nacionais` com `verificada`, `parcial` ou `nao_verificada` e os motivos agregados (sem CAR).
-- **Dossiê do município** (`raiz/dossie_lote.py`, `docs/lote.md`): exclusão sai em qualquer modo; ressalva entra com
+- **Dossiê do município** (`raiz/lote/dossie.py`, `docs/lote.md`): exclusão sai em qualquer modo; ressalva entra com
   peso (forte: borda de Lista Suja ou lavra, território tradicional na borda, auto de Flora recente, CAR suspenso;
   leve: RL/APP de outro CAR; o resto, média). Sem verificação: ressalva média, nunca "livre".
 

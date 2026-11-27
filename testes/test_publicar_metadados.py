@@ -10,7 +10,7 @@ import httpx
 import pytest
 import yaml
 
-from raiz.atestacao import identificador
+from raiz.publico.atestacao import identificador
 from scripts import publicar_metadados as P
 from testes.test_armazem_release import GitHubFalso, _armazem
 

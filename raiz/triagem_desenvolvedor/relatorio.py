@@ -8,7 +8,7 @@ import io
 from xml.sax.saxutils import escape
 
 from raiz.agentes.textos import num
-from raiz.privacidade import mascarar
+from raiz.protecao.privacidade import mascarar
 from raiz.triagem_desenvolvedor import COLUNAS, resumo
 from raiz.triagem_desenvolvedor import nota as N
 

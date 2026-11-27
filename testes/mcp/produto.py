@@ -35,7 +35,7 @@ from sqlalchemy.engine import make_url
 from raiz import RAIZ_REPO
 from raiz.banco import desfazer, migrar
 from raiz.config import Config, config
-from raiz.pessoal import gerar_chave
+from raiz.protecao.pessoal import gerar_chave
 from testes.mcp.car import fonte_sintetica, validar_banco
 from testes.mcp.cliente import ClienteMCP
 
@@ -166,11 +166,11 @@ def _criar_banco(url: str) -> None:
 
 
 def _semente(engine) -> dict:
-    from raiz import prospeccao_acesso
     from raiz.calendario import banco as calendario
     from raiz.calendario.coleta import fontes
     from raiz.calendario.modelos import Evento, identificador
     from raiz.pedidos import servico
+    from raiz.prospeccao import acesso as prospeccao_acesso
     from raiz.publica import trabalhos
 
     cid, _ = servico.criar_cliente(engine, "Empresa sintética do ensaio MCP")

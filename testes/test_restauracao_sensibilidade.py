@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from raiz import restauracao as R
-from raiz import restauracao_sensibilidade as S
+from raiz.restauracao import sensibilidade as S
 from testes.test_restauracao import _linha
 
 

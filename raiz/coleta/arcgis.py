@@ -25,7 +25,7 @@ from raiz.coleta.espelho import Diferenca, Espelho
 from raiz.coleta.manifesto import UFS, Fonte, carregar
 from raiz.coleta.replicacao import atualizar, estado, evento
 from raiz.coleta.wfs import LeituraIncompleta
-from raiz.privacidade import colunas_pessoais, mascarar
+from raiz.protecao.privacidade import colunas_pessoais, mascarar
 
 
 def detalhes(s: requests.Session, url: str, timeout: int = 60) -> dict:
@@ -201,7 +201,7 @@ def coletar_municipio(
     coleta quando o usuário muda a caixa, a fonte ou os campos. Falha/trava mantém cursor e assinatura aceitos.
     """
     from raiz.coleta.espelho import registrar_alertas
-    from raiz.versoes import sha256_arquivo
+    from raiz.medicao.versoes import sha256_arquivo
 
     f = carregar().fonte(fonte) if isinstance(fonte, str) else fonte
     uf = uf.upper()

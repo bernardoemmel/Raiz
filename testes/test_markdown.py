@@ -4,8 +4,9 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
-from raiz import front_api, markdown, publico
+from raiz import front_api, publico
 from raiz.api import criar_app
+from raiz.leitura import markdown
 from testes.test_privacidade import CPF, fmt_cpf
 
 

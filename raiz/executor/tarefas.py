@@ -47,8 +47,8 @@ CODIGO = {
     "direto": ("motor/raiz_direto.py", "motor/raiz_extras.py", "raiz/funil/ponte.py"),
     "mapbiomas": ("motor/raiz_mapbiomas.py",),
     "extras_direto": ("motor/raiz_extras_direto.py", "motor/raiz_extras.py"),
-    "flag": ("raiz/flag.py",),
-    "terra": ("raiz/terra.py",),
+    "flag": ("raiz/medicao/flag.py",),
+    "terra": ("raiz/terra/__init__.py",),
     "titulo": (
         "raiz/titulo/regularizacao.py",
         "raiz/titulo/achados.py",
@@ -60,15 +60,15 @@ CODIGO = {
         "raiz/titulo/tarefa.py",
     ),
     "ficha": (
-        "raiz/imovel_dados.py",
-        "raiz/osm.py",
-        "raiz/tiles.py",
-        "raiz/motivos.py",
+        "raiz/leitura/imovel.py",
+        "raiz/mapa/osm.py",
+        "raiz/mapa/tiles.py",
+        "raiz/leitura/motivos.py",
         "raiz/regras/padroes/faixas.yaml",
     ),  # fmt: skip
-    "rebanho": ("raiz/rebanho.py",),
+    "rebanho": ("raiz/medicao/rebanho.py",),
     # tarefa própria, folha do grafo: mexer aqui ou receber coleta nova refaz só ela (o funil fica)
-    "comprometida": ("raiz/comprometida/status.py", "raiz/terra_comprometida.py"),
+    "comprometida": ("raiz/comprometida/status.py", "raiz/terra/comprometida.py"),
     # restrições nacionais (SICAR completo, SIGMINE, autos do Ibama, Lista Suja): também folha, mesma lógica
     "restricoes": ("raiz/restricoes/status.py", "raiz/restricoes/coleta.py"),
     # fontes complementares (SICOR, quilombolas IBGE/Palmares, MPF, Observatório e Restor): também folha
@@ -82,7 +82,7 @@ CODIGO = {
         "raiz/ambiental/relevo.py",
         "raiz/ambiental/terraclass.py",
     ),  # fmt: skip
-    "desenvolvedor": ("raiz/restauracao.py", "raiz/restauracao_geo.py", "raiz/vazamento.py"),
+    "desenvolvedor": ("raiz/restauracao/__init__.py", "raiz/restauracao/geo.py", "raiz/protecao/vazamento.py"),
 }
 DEPENDE = {
     "funil": (),
@@ -135,7 +135,7 @@ def _hash_codigo(arquivos: tuple[str, ...], extra: str = "") -> str:
 def versao(nome: str) -> str:
     extra = ""
     if nome == "flag":
-        from raiz import flag
+        from raiz.medicao import flag
 
         extra = flag.versao()
     elif nome == "terra":
@@ -143,7 +143,7 @@ def versao(nome: str) -> str:
 
         extra = terra.versao()
     elif nome == "rebanho":
-        from raiz import rebanho
+        from raiz.medicao import rebanho
 
         extra = rebanho.versao()
     elif nome == "desenvolvedor":
@@ -529,7 +529,7 @@ def executor_producao(armazem=None):
     from raiz.executor.armazem import do_config
     from raiz.executor.executor import Executor
     from raiz.funil.rodar import dir_trabalho
-    from raiz.versoes import motor_versao
+    from raiz.medicao.versoes import motor_versao
 
     return Executor(armazem or do_config(), dir_trabalho(), tarefas_producao(), municipios=municipios_da_uf,
                     resumo=resumo_uf, motor_versao=motor_versao)  # fmt: skip

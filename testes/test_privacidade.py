@@ -7,7 +7,7 @@ import subprocess
 import pandas as pd
 
 from raiz import RAIZ_REPO
-from raiz import privacidade as P
+from raiz.protecao import privacidade as P
 
 
 def gerar_cpf(base9: str) -> str:
@@ -122,7 +122,7 @@ def test_repositorio_sem_cpf_cnpj():
 
 
 def test_documento_no_identificador_com_prefixo_e_formatacao():
-    from raiz.privacidade import documento_em_identificador
+    from raiz.protecao.privacidade import documento_em_identificador
 
     cpf_fmt = f"{CPF[:3]}.{CPF[3:6]}.{CPF[6:9]}-{CPF[9:]}"
     for v in (CPF, CNPJ, cpf_fmt):

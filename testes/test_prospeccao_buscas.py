@@ -7,10 +7,10 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 from sqlalchemy import create_engine, text
 
-from raiz import prospeccao_buscas as buscas
-from raiz.busca import normalizar_codigo
+from raiz.leitura.busca import normalizar_codigo
 from raiz.pedidos.servico import criar_cliente
-from raiz.prospeccao_acesso import ErroAcesso
+from raiz.prospeccao import buscas
+from raiz.prospeccao.acesso import ErroAcesso
 
 
 @pytest.fixture

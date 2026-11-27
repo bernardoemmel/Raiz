@@ -9,7 +9,7 @@ from psycopg.types.json import Jsonb
 from sqlalchemy import Connection, text
 
 from raiz.coleta.manifesto import Manifesto, carregar, hash_manifesto
-from raiz.privacidade import mascarar
+from raiz.protecao.privacidade import mascarar
 
 CAMPOS = {
     "cursor",

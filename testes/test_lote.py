@@ -14,8 +14,8 @@ import pandas as pd
 import pytest
 
 from raiz import lote as L
-from raiz import lote_relatorio as LR
 from raiz import restauracao as R
+from raiz.lote import relatorio as LR
 from testes.conftest import AMOSTRA
 
 

@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from raiz.imovel_dados import ficha_prospeccao
+from raiz.leitura.imovel import ficha_prospeccao
 
 
 def _linha(**novos):

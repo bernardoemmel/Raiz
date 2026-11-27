@@ -366,7 +366,7 @@ def test_tarefa_propria_folha_que_so_depende_do_funil(tmp_path, monkeypatch):
 
 @pytest.mark.parametrize(("status", "bloqueia"), [("exclusao", True), ("ressalva", False), (None, False)])
 def test_oferta_exclusao_bloqueia(status, bloqueia, monkeypatch):
-    from raiz import salvaguardas
+    from raiz.medicao import salvaguardas
     from raiz.pedidos import oferta as O
 
     monkeypatch.setattr(salvaguardas, "avaliar", lambda li, v=None: {"pode_originar": True})

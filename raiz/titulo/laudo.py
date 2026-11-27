@@ -199,7 +199,7 @@ def html(d: dict) -> str:
 def gravar(pasta: str | Path, cod: int, cod_imovel: str, saida: str | Path, con=None, pdf: bool = False,
            base_warc: Path | None = None) -> dict:  # fmt: skip
     """Escreve laudo_<imóvel>.html (e o .pdf, se pedido e houver LibreOffice). Devolve os caminhos."""
-    from raiz.privacidade import mascarar
+    from raiz.protecao.privacidade import mascarar
 
     saida = Path(saida)
     saida.mkdir(parents=True, exist_ok=True)

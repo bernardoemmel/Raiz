@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from shapely.geometry import Polygon, box, mapping, shape
 
 from raiz import front_api
-from raiz import prospeccao_visual as visual
+from raiz.prospeccao import visual
 
 
 def test_mascara_preserva_furo_e_hachura_nunca_sai_do_car():
@@ -82,7 +82,7 @@ def test_consulta_carrega_geometrias_do_postgis_e_corte_da_carga(banco_url):
 
     from sqlalchemy import create_engine, text
 
-    from raiz.busca import normalizar_codigo
+    from raiz.leitura.busca import normalizar_codigo
 
     engine = create_engine(banco_url)
     car = "PA-1504950-" + uuid.uuid4().hex.upper()

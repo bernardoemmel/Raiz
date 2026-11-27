@@ -4,7 +4,8 @@ Para cada fonte com `tipo: wfs` ou `tipo: arcgis` e `acesso: aberto`:
   1. lê a camada inteira da UF (WFS paginado ou ArcGIS por OBJECTID, com conferência da contagem: camada pela
      metade falha em vez de ser gravada), sempre pedida em EPSG:4674;
   2. apaga na entrada os campos de `descartar` e qualquer outro que pareça pessoal (nome, CPF, CNPJ...;
-     `raiz.privacidade.colunas_pessoais`), guarda só os de `manter` que existirem (tolera coluna nova ou sumida);
+     `raiz.protecao.privacidade.colunas_pessoais`), guarda só os de `manter` que existirem
+     (tolera coluna nova ou sumida);
   3. mascara CPF/CNPJ que apareça dentro de texto livre;
   4. calcula `efeito` e `motivo` de cada feição pelas `regra_efeito` (valor de campo, recência);
   5. grava estaduais_<id>.parquet e o estado de cada fonte em estaduais_cobertura.json
@@ -30,7 +31,7 @@ import requests
 import shapely
 import yaml
 
-from raiz.privacidade import colunas_pessoais, mascarar
+from raiz.protecao.privacidade import colunas_pessoais, mascarar
 
 PASTA_FONTES = Path(__file__).with_name("fontes")
 COBERTURA = "estaduais_cobertura.json"
@@ -216,7 +217,7 @@ def limpar(g: gpd.GeoDataFrame, f: dict) -> gpd.GeoDataFrame:
 def _sem_documento(v):
     """Máscara de CPF/CNPJ em texto; código que coincide com um CPF ou CNPJ válido (número de processo, auto)
     vira vazio: na dúvida, perde-se o código, nunca se publica um documento."""
-    from raiz.privacidade import documento_em_identificador
+    from raiz.protecao.privacidade import documento_em_identificador
 
     if not isinstance(v, str):
         return v
@@ -398,7 +399,7 @@ def _cnfp(s: requests.Session, f: dict) -> gpd.GeoDataFrame:
     import os
     import tempfile
 
-    from raiz import terra_publica as TP
+    from raiz.terra import publica as TP
 
     pasta = Path(os.environ.get("RAIZ_CNFP_DIR") or Path(tempfile.gettempdir()) / "raiz_cnfp")
     pasta.mkdir(parents=True, exist_ok=True)
@@ -464,7 +465,7 @@ def aplicar_desembargos(saidas: dict[str, gpd.GeoDataFrame], fontes: list[dict])
 
 def conferir_sem_documento(pasta: Path) -> list[str]:
     """Arquivos da coleta com CPF/CNPJ em claro (deve voltar vazio antes de publicar)."""
-    from raiz.privacidade import documento_em_identificador
+    from raiz.protecao.privacidade import documento_em_identificador
 
     ruins = []
     for arq in pasta.glob("estaduais_*.parquet"):

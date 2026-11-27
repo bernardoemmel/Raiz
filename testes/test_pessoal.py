@@ -1,7 +1,7 @@
 import pytest
 from sqlalchemy import create_engine, text
 
-from raiz import pessoal as P
+from raiz.protecao import pessoal as P
 
 CHAVE = P.gerar_chave()
 

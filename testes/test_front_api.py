@@ -66,13 +66,13 @@ def cliente(banco_url, tmp_path_factory):
         )  # fmt: skip
     )
     (pasta / f"base_{COD}.pmtiles").write_bytes(bytes(range(256)) * 4)
-    from raiz.geo import carregar
+    from raiz.mapa.geo import carregar
 
     with eng.begin() as c:
         assert carregar(c, COD, pasta) == {"municipio": 1}
     cfg = type("C", (), {"api_token": SecretStr(TOKEN), "api_origens": "http://localhost:5173"})()
     import raiz.api as api_mod
-    import raiz.geo as geo_mod
+    import raiz.mapa.geo as geo_mod
 
     mp = pytest.MonkeyPatch()
     mp.setattr(api_mod, "config", lambda: cfg)

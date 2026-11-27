@@ -8,9 +8,9 @@ import sys
 
 import pytest
 
-from raiz import qualidade_calendario as Q
 from raiz.calendario.feed import ics
 from raiz.calendario.modelos import MARCOS, TITULOS, Evento
+from raiz.qualidade import calendario as Q
 from testes.test_privacidade import CPF
 
 
@@ -141,7 +141,7 @@ def test_fragmentos_nao_sao_publicados(snapshot):
 
 def test_cli_funciona_sem_site_packages_e_nao_emite_erro_bruto(snapshot):
     resultado = subprocess.run(
-        [sys.executable, "-S", "-m", "raiz.qualidade_calendario"],
+        [sys.executable, "-S", "-m", "raiz.qualidade.calendario"],
         input=json.dumps(snapshot),
         text=True,
         capture_output=True,
@@ -151,7 +151,7 @@ def test_cli_funciona_sem_site_packages_e_nao_emite_erro_bruto(snapshot):
     assert json.loads(resultado.stdout)["agenda"]["total"] == 1
     snapshot["eventos"][0]["fonte_url"] = "https://contato@example.invalid/"
     resultado = subprocess.run(
-        [sys.executable, "-S", "-m", "raiz.qualidade_calendario"],
+        [sys.executable, "-S", "-m", "raiz.qualidade.calendario"],
         input=json.dumps(snapshot),
         text=True,
         capture_output=True,
@@ -211,7 +211,7 @@ def test_pasta_recusa_original_contaminado_mesmo_que_projecao_seria_limpa(tmp_pa
     else:
         arquivo.write_text(arquivo.read_text().replace("SUMMARY:", "SUMMARY:Pessoa Sintética "))
     resultado = subprocess.run(
-        [sys.executable, "-S", "-m", "raiz.qualidade_calendario", "--pasta", str(tmp_path)],
+        [sys.executable, "-S", "-m", "raiz.qualidade.calendario", "--pasta", str(tmp_path)],
         capture_output=True,
         text=True,
         check=False,

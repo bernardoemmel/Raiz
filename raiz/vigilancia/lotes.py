@@ -28,7 +28,7 @@ from raiz.vigilancia.poligonos import uf_mun_do_codigo
 from raiz.vigilancia.privacidade import mascarar
 
 ARQUIVO = "lotes-vigilancia.json"
-PONTEIRO_NACIONAL = "lote_nacional_atual.json"  # raiz/restauracao_nacional_rodada.py
+PONTEIRO_NACIONAL = "lote_nacional_atual.json"  # raiz/restauracao/nacional_rodada.py
 SEM_CLIENTE = 0  # lote nacional não tem dono: vigia e alerta, mas não prepara rascunho
 VALIDADE = dt.timedelta(hours=36)
 FONTES = frozenset({"deter", "mapbiomas_alerta", "firms"})
@@ -174,7 +174,7 @@ def carregar_catalogo(
 
 
 def _cars_do_zip(dado: bytes) -> set[str]:
-    """CARs da lista cars.csv de um pacote "lote pronto" (raiz/lote_pronto.py); o resto do ZIP nem é lido."""
+    """CARs da lista cars.csv de um pacote "lote pronto" (raiz/lote/pronto.py); o resto do ZIP nem é lido."""
     with zipfile.ZipFile(io.BytesIO(dado)) as z:
         nomes = [n for n in z.namelist() if n.rsplit("/", 1)[-1] == "cars.csv"]
         if not nomes:

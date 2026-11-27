@@ -16,8 +16,8 @@ from raiz import RAIZ_REPO
 from raiz.banco import desfazer, migrar
 from raiz.carga import carregar_pasta
 from raiz.config import Config, config
-from raiz.pessoal import gerar_chave
-from raiz.seguranca_api import SegurancaAPI
+from raiz.protecao.api import SegurancaAPI
+from raiz.protecao.pessoal import gerar_chave
 
 
 def banco_local(url: str) -> str:

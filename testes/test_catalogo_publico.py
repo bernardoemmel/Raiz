@@ -6,9 +6,9 @@ import json
 import httpx
 import pytest
 
-from raiz.catalogo_publico import catalogar_publico
 from raiz.executor.armazem import ArmazemRelease
 from raiz.executor.publicacao_aberta import validar_asset_publico
+from raiz.publico.catalogo import catalogar_publico
 from testes.test_armazem_release import GitHubFalso
 
 

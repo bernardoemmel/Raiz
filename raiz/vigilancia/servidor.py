@@ -61,10 +61,10 @@ def criar_app(servico: Vigilancia | None = None, baixar: bool | None = None) -> 
 
     app = FastAPI(title="Raíz: vigilância", lifespan=ciclo)
     from raiz.config import config
-    from raiz.limites import do_config as limite_do_config
-    from raiz.observabilidade import do_config as erros_do_config
-    from raiz.privacidade import configurar_log
-    from raiz.seguranca_api import SegurancaAPI
+    from raiz.protecao.api import SegurancaAPI
+    from raiz.protecao.limites import do_config as limite_do_config
+    from raiz.protecao.observabilidade import do_config as erros_do_config
+    from raiz.protecao.privacidade import configurar_log
 
     configurar_log()
     limite = limite_do_config(config())

@@ -20,7 +20,7 @@ from sqlalchemy import create_engine, text
 
 from raiz.carga import carregar_pasta
 from raiz.pedidos import servico as S
-from raiz.pessoal import gerar_chave
+from raiz.protecao.pessoal import gerar_chave
 from raiz.publica import api
 from raiz.publica import chaves as K
 from raiz.publica import conta as CT
@@ -62,7 +62,7 @@ def eng(banco_url):
 
 @pytest.fixture(scope="module", autouse=True)
 def cofre():
-    import raiz.pessoal as pessoal
+    import raiz.protecao.pessoal as pessoal
 
     mp = pytest.MonkeyPatch()
     chave = SecretStr(gerar_chave())
@@ -386,7 +386,7 @@ def test_login_da_conta_so_envia_a_cadastrado_sem_expor_token(eng, cl, empresa, 
     monkeypatch.setenv("RAIZ_API_PUBLICA_URL", "https://api.raiz.example")
     enviados = []
     monkeypatch.setattr(S, "ENVIO_LINK", lambda email, link: enviados.append((email, link)))
-    from raiz.pessoal import Cofre
+    from raiz.protecao.pessoal import Cofre
 
     with eng.connect() as con:
         cifrado = con.execute(

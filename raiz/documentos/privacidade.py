@@ -4,7 +4,7 @@ Três trancas, nesta ordem:
 1. O modelo é instruído a nunca escrever nome de pessoa: cada pessoa vira um rótulo (P1, P2...) e o esquema da resposta
    não tem campo de nome (só órgão público e banco podem ter o nome da instituição).
 2. mascarar(): todo CPF e CNPJ de qualquer texto vira ***.456.789-** e **.345.678/****-**. Usa a guarda do pacote
-   (raiz/privacidade.py) quando ela existe; senão, a cópia fiel abaixo, com as mesmas regras do front
+   (raiz/protecao/privacidade.py) quando ela existe; senão, a cópia fiel abaixo, com as mesmas regras do front
    (front/compartilhado/privacidade.ts).
 3. tirar_nomes(): nos textos livres (resumo de ato, observação), troca por [nome] toda sequência de duas ou mais
    palavras com inicial maiúscula que não são vocabulário de registro de imóveis, lugar ou instituição. Erra para o
@@ -18,8 +18,8 @@ import re
 import unicodedata
 from collections.abc import Iterable
 
-try:  # a guarda única do pacote, quando o back-end (raiz/privacidade.py) está presente
-    from raiz.privacidade import cnpj_valido, cpf_valido, mascarar  # type: ignore  # noqa: F401
+try:  # a guarda única do pacote, quando o back-end (raiz/protecao/privacidade.py) está presente
+    from raiz.protecao.privacidade import cnpj_valido, cpf_valido, mascarar  # type: ignore  # noqa: F401
 except ImportError:  # cópia fiel das mesmas regras
 
     def _so_digitos(s: str) -> str:
@@ -213,13 +213,13 @@ class FormatadorSeguro(logging.Formatter):
     """Passa o texto final pelo Presidio, inclusive no comando independente de documentos."""
 
     def format(self, record: logging.LogRecord) -> str:
-        from raiz.logs_seguros import sanitizar_log
+        from raiz.protecao.logs import sanitizar_log
 
         return sanitizar_log(super().format(record))
 
 
 def configurar_log(nivel: int = logging.INFO) -> None:
-    from raiz.privacidade import configurar_log as configurar_comum
+    from raiz.protecao.privacidade import configurar_log as configurar_comum
 
     configurar_comum(nivel)
     logging.getLogger("anthropic").setLevel(logging.WARNING)

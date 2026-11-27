@@ -12,7 +12,7 @@ name: Publicar o site
 on:
   push:
     branches: [main]
-    paths: ["front/**", "raiz/potencial_publico.py", "raiz/lotes_publicos.py", ".github/workflows/publicar-site.yml"]
+    paths: ["front/**", "raiz/publico/potencial.py", "raiz/lote/publicos.py", ".github/workflows/publicar-site.yml"]
   schedule:
     - cron: "41 */3 * * *" # a cada 3 h: o motor publica estados novos o dia todo
   workflow_dispatch:
@@ -81,13 +81,13 @@ jobs:
         env:
           RAIZ_DADOS_PRIVADOS_URL: release-github://${{ github.repository }}/dados-privados
           RAIZ_DADOS_PRIVADOS_TOKEN: ${{ github.token }}
-        run: python -m raiz.potencial_publico
+        run: python -m raiz.publico.potencial
 
       - name: Resumo aberto dos lotes, sem baixar composição ou pacotes pagos
         env:
           RAIZ_DADOS_PRIVADOS_URL: release-github://${{ github.repository }}/dados-privados
           RAIZ_DADOS_PRIVADOS_TOKEN: ${{ github.token }}
-        run: python -m raiz.lotes_publicos
+        run: python -m raiz.lote.publicos
 
       - name: "Guardar as geometrias (mesmo as de uma rodada pela metade: o geo.py só baixa o que falta)"
         if: always()

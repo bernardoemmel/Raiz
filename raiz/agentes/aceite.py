@@ -29,10 +29,10 @@ from sqlalchemy import Engine, text
 
 from raiz.agentes import textos
 from raiz.aprendizado.registro import registrar_gabarito
+from raiz.contato.revisor import nota_de_envio
 from raiz.modelos.base import Pedido
 from raiz.modelos.cascata import Cascata
-from raiz.pessoal import registrar_consentimento
-from raiz.revisor import nota_de_envio
+from raiz.protecao.pessoal import registrar_consentimento
 
 ETAPAS_DO_DONO = {"convite", "explicacao", "codigo"}
 MAX_EXPLICACOES = 2
@@ -379,7 +379,7 @@ def pausa(grafo, cod_imovel: str, deps: Dependencias) -> dict | None:
 
 
 def iniciar(grafo, deps: Dependencias, cod_imovel: str, contato_id: int, proposta: dict | None = None) -> Any:
-    from raiz.pessoal import vincular_imovel
+    from raiz.protecao.pessoal import vincular_imovel
 
     with deps.engine.begin() as con:
         existe = con.execute(

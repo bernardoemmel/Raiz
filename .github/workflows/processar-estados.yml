@@ -309,7 +309,7 @@ jobs:
             if ! uv run python - <<'PY'
           import json, sys
           import geopandas as gpd
-          from raiz.terra_comprometida import FONTES
+          from raiz.terra.comprometida import FONTES
           base = "motor/cache/comprometida/"
           cob = json.load(open(base + "comprometida_cobertura.json", encoding="utf-8")).get("cobertura", [])
           fontes = {c.get("fonte_id") for c in cob} | set(gpd.read_parquet(base + "comprometida_limites.parquet").fonte_id)

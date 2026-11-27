@@ -28,7 +28,7 @@ import httpx
 import shapely
 
 from raiz.coleta.compromissos_registros import status_registro
-from raiz.terra_comprometida import catalogo_fontes, normalizar
+from raiz.terra.comprometida import catalogo_fontes, normalizar
 
 LIMITE = 150 * 1024 * 1024
 

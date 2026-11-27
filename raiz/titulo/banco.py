@@ -168,7 +168,7 @@ def confirmar(con: Connection, achado_id: int, quem: str, decisao: str, nota: st
     a = con.execute(text("select cod_imovel, regra, valor from titulo.achado where id = :i"), {"i": achado_id}).first()
     if a is None:
         raise ValueError(f"achado {achado_id} não existe")
-    from raiz.privacidade import mascarar
+    from raiz.protecao.privacidade import mascarar
 
     return con.execute(
         text("""insert into titulo.confirmacao (achado_id, cod_imovel, regra, valor, decisao, quem, nota)

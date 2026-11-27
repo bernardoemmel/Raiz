@@ -7,7 +7,7 @@ import tarfile
 
 import pytest
 
-from raiz import restauracao_nacional_fontes as F
+from raiz.restauracao import nacional_fontes as F
 
 
 class Armazem:

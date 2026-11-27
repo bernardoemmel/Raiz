@@ -10,8 +10,8 @@ from fastapi.testclient import TestClient
 from pydantic import SecretStr
 from sqlalchemy import create_engine, text
 
-from raiz import motivos
-from raiz.municipio_dados import frase, funil
+from raiz.leitura import motivos
+from raiz.leitura.municipio import frase, funil
 from testes.conftest import AMOSTRA
 
 COD = 1504950

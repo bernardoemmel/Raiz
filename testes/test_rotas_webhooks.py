@@ -9,8 +9,8 @@ from fastapi.testclient import TestClient
 from pydantic import SecretStr
 from sqlalchemy import create_engine, text
 
-from raiz import pessoal
 from raiz.pedidos import servico as S
+from raiz.protecao import pessoal
 from raiz.publica import api
 from raiz.publica import chaves as K
 from raiz.publica import webhooks as W

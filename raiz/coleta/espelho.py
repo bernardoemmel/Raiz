@@ -23,7 +23,7 @@ import geopandas as gpd
 import pandas as pd
 import shapely
 
-from raiz.privacidade import remover_colunas_pessoais
+from raiz.protecao.privacidade import remover_colunas_pessoais
 
 GEOM = "geometry"
 PRECISAO_GRAUS = 1e-7  # ~1 cm: abaixo disso a diferença é ruído de arredondamento do servidor, não mudança

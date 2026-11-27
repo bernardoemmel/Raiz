@@ -10,11 +10,11 @@ import pytest
 from pydantic import SecretStr
 from sqlalchemy import create_engine, text
 
-from raiz import salvaguardas as SG
+from raiz.medicao import salvaguardas as SG
 from raiz.pedidos import pix
 from raiz.pedidos import servico as S
 from raiz.pedidos.campos import CamposPedido
-from raiz.pessoal import Cofre, gerar_chave
+from raiz.protecao.pessoal import Cofre, gerar_chave
 from raiz.publica import aprovacao, recibos
 
 
@@ -29,7 +29,7 @@ def eng(request):
 @pytest.fixture
 def chaves(monkeypatch):
     k = gerar_chave()
-    monkeypatch.setattr("raiz.pessoal.config", lambda: type("C", (), {"chave_pessoal": SecretStr(k)})())
+    monkeypatch.setattr("raiz.protecao.pessoal.config", lambda: type("C", (), {"chave_pessoal": SecretStr(k)})())
     monkeypatch.setenv("RAIZ_RECIBO_CHAVE", base64.urlsafe_b64encode(os.urandom(32)).decode())
     monkeypatch.delenv("RAIZ_ABACATEPAY_CHAVE", raising=False)
     return Cofre(k)

@@ -4,8 +4,8 @@ import geopandas as gpd
 import pandas as pd
 import requests
 
-from raiz import restauracao_controle_externo as C
-from raiz import restauracao_validacao_regeneracao as V
+from raiz.restauracao import controle_externo as C
+from raiz.restauracao import validacao_regeneracao as V
 
 
 def test_falha_http_registra_pendencia_sem_numeros(tmp_path, monkeypatch):

@@ -48,7 +48,7 @@ jobs:
         env:
           ARQUIVO_MD: ${{ steps.busca.outputs.arquivo_md }}
           ARQUIVO_CSV: ${{ steps.busca.outputs.arquivo_csv }}
-        run: uv run --frozen --no-dev python -m raiz.qualidade_busca dados/documentos/busca/busca.sqlite "$ARQUIVO_MD" "$ARQUIVO_CSV"
+        run: uv run --frozen --no-dev python -m raiz.qualidade.busca dados/documentos/busca/busca.sqlite "$ARQUIVO_MD" "$ARQUIVO_CSV"
 
       - name: Guardar o estado e a lista no Release busca
         env:

@@ -16,7 +16,8 @@ from unittest.mock import patch
 import uvicorn
 from fastapi import FastAPI
 
-from raiz import publico, publico_versoes
+from raiz import publico
+from raiz.publico import versoes as publico_versoes
 
 
 def _versao(rodada: int, corte: dt.date, area: float) -> publico_versoes.VersaoPublica:

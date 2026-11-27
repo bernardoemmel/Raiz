@@ -5,7 +5,7 @@ import json
 import typer
 from typer.testing import CliRunner
 
-from raiz.prospeccao_operacao import registrar
+from raiz.prospeccao.operacao import registrar
 
 app = typer.Typer()
 registrar(app)
@@ -43,6 +43,6 @@ def test_ufs_novas_por_padrao_e_falha_de_checkpoint_tem_exit_code(monkeypatch):
         recebidos.append(kwargs)
         return {"falhas": 0, "fichas": {"pendente": True}}
 
-    monkeypatch.setattr("raiz.prospeccao_cobertura.atualizar_base", atualizar)
+    monkeypatch.setattr("raiz.prospeccao.cobertura.atualizar_base", atualizar)
     r = runner.invoke(app, ["atualizar-base"])
     assert r.exit_code == 1 and recebidos[0]["ufs"] is None

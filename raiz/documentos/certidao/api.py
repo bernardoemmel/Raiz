@@ -21,8 +21,8 @@ from starlette.concurrency import run_in_threadpool
 from raiz.documentos import aprendizado
 from raiz.documentos.certidao.entrada import MAX_BYTES, EntradaCertidao, ErroEntrada, capturar_previsao_banco
 from raiz.pedidos import servico as pedidos
-from raiz.pessoal import SemChavePessoal
-from raiz.prospeccao_acesso import ErroAcesso, limitar
+from raiz.prospeccao.acesso import ErroAcesso, limitar
+from raiz.protecao.pessoal import SemChavePessoal
 from raiz.publica import conta
 
 PRIVADO = {"Cache-Control": "private, no-store", "Vary": "Authorization", "X-Content-Type-Options": "nosniff"}

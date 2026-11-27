@@ -71,9 +71,9 @@ usado como dependência, sem copiar código. Licença conferida no pacote instal
 | Desenho da fila de coleta: até 200 unidades por rodada, nova tentativa, disjuntor quando mais de 15% está sujo e reconciliação completa mensal (desenho, sem código copiado) | `raiz/coleta/fila.py` | MIT, osm-geoparquet (nfhl.py) | osm-geoparquet |
 | Regras da escadinha do art. 61-A (`faixa_rio_consolidada`) e do teto do art. 61-B (`limite_61b`), reescritas | `motor/raiz_estado.py`, `motor/raiz_app.py` | MIT, Copyright (c) 2022 GeoOne | https://github.com/OpenGeoOne/GeoCAR |
 | Contorno dos estados do Brasil (Natural Earth 1:50m, admin 1), projetado e simplificado para o minimapa em SVG | `front/compartilhado/brasil-estados.ts` (gerado por `front/scripts/geo.py`) | domínio público | https://www.naturalearthdata.com |
-| Contagem de letras, palavras, sílabas e frases e as fórmulas do ALT (Análise de Legibilidade Textual: Flesch, Flesch-Kincaid, Gunning Fog, ARI, Coleman-Liau, Gulpease e o resultado), copiadas do alt-python 0.1.2 sem a leitura de PDF e Word; a lista de palavras comuns da Linguateca não foi copiada (sem licença clara). As fórmulas de Martins et al. (1996, NILC-USP) e a do LanguageTool para o português (LGPL; só os coeficientes, sem código) foram reimplementadas | `raiz/legibilidade.py` | MIT, Copyright (c) 2025 Marco Polo Moreno de Souza | https://github.com/marcopolomoreno/alt-python |
-| ThumbHash: codificador e decodificador (rgbaToThumbHash e thumbHashToRGBA) portados para Python, com o arredondamento do JavaScript para o hash sair igual ao do pacote npm | `raiz/thumbhash.py` | MIT, Copyright (c) 2023 Evan Wallace | https://github.com/evanw/thumbhash |
-| Link curto do Organic Maps (formato ge0: zoom e coordenada em 10 caracteres, nome com %XX), reimplementado a partir de libs/ge0/url_generator.cpp e conferido com os casos de teste dele; Plus Code pela especificação aberta do Open Location Code | `raiz/localizacao.py` | Apache-2.0 (Organic Maps; Open Location Code) | https://github.com/organicmaps/organicmaps e https://github.com/google/open-location-code |
+| Contagem de letras, palavras, sílabas e frases e as fórmulas do ALT (Análise de Legibilidade Textual: Flesch, Flesch-Kincaid, Gunning Fog, ARI, Coleman-Liau, Gulpease e o resultado), copiadas do alt-python 0.1.2 sem a leitura de PDF e Word; a lista de palavras comuns da Linguateca não foi copiada (sem licença clara). As fórmulas de Martins et al. (1996, NILC-USP) e a do LanguageTool para o português (LGPL; só os coeficientes, sem código) foram reimplementadas | `raiz/contato/legibilidade.py` | MIT, Copyright (c) 2025 Marco Polo Moreno de Souza | https://github.com/marcopolomoreno/alt-python |
+| ThumbHash: codificador e decodificador (rgbaToThumbHash e thumbHashToRGBA) portados para Python, com o arredondamento do JavaScript para o hash sair igual ao do pacote npm | `raiz/mapa/thumbhash.py` | MIT, Copyright (c) 2023 Evan Wallace | https://github.com/evanw/thumbhash |
+| Link curto do Organic Maps (formato ge0: zoom e coordenada em 10 caracteres, nome com %XX), reimplementado a partir de libs/ge0/url_generator.cpp e conferido com os casos de teste dele; Plus Code pela especificação aberta do Open Location Code | `raiz/contato/localizacao.py` | Apache-2.0 (Organic Maps; Open Location Code) | https://github.com/organicmaps/organicmaps e https://github.com/google/open-location-code |
 | Códigos dos 5.571 municípios por estado (IBGE, Divisão Territorial Brasileira 2025, data base 31/12/2025), só os códigos | `front/compartilhado/ibge-municipios.ts` (gerado por `front/scripts/geo.py`) | dado público do IBGE, uso livre com citação da fonte | https://geoftp.ibge.gov.br/organizacao_do_territorio/estrutura_territorial/divisao_territorial/ |
 
 Dados públicos lidos pelo motor e pelo produto (cada um com seus termos): IBGE (Pesquisa da Pecuária Municipal, SIDRA 3939, e Censo Agro 2017, SIDRA 6899, 6753, 6881 e 6910), SICAR/SFB, Ibama, INPE TerraBrasilis (PRODES),
@@ -110,7 +110,7 @@ fundador em `motor/iovbench/` (EvenOdd, contorno externo menos buracos).
 
 - Origem: https://languagetool.org, versão 6.6, baixada pelo `infra/languagetool/Dockerfile` ao montar o contêiner.
 - Licença: LGPL-2.1 ou posterior. Roda só como serviço separado no servidor (`revisor` em `infra/docker-compose.yml`);
-  nenhum código dele é copiado para o produto. `raiz/revisor.py` só chama a API HTTP dele.
+  nenhum código dele é copiado para o produto. `raiz/contato/revisor.py` só chama a API HTTP dele.
 
 ## Conferência independente de contagens (rodada 12)
 
@@ -177,7 +177,7 @@ proposta do llmstxt.org; JSON-LD usa o vocabulário schema.org, sem copiar códi
 
 ## OpenStreetMap pelos ladrilhos do Protomaps (cidades e estradas por imóvel)
 
-- `raiz/osm.py` lê as camadas `places` e `roads` do build diário do Protomaps (build.protomaps.com, dados ©
+- `raiz/mapa/osm.py` lê as camadas `places` e `roads` do build diário do Protomaps (build.protomaps.com, dados ©
   colaboradores do OpenStreetMap, ODbL 1.0) por faixa de bytes. As colunas derivadas (cidade_proxima,
   cidade_proxima_km, cidade_proxima_direcao, estrada_acesso, estrada_acesso_km) formam uma base derivada do OSM: quando
   publicadas, levam a atribuição "© colaboradores do OpenStreetMap" e seguem a ODbL (oferecer a base derivada sob a
@@ -219,11 +219,11 @@ proposta do llmstxt.org; JSON-LD usa o vocabulário schema.org, sem copiar códi
   fonte Geist que vem embutida (SIL Open Font License). Sem código copiado.
 - FFmpeg (GPL, pacote do sistema) só como processo separado no servidor, para juntar as cenas e o áudio em MP4; não
   vai no produto distribuído.
-- Voz: Qwen3-TTS (`qwen-tts`, Apache-2.0) quando instalado no servidor (raiz/voz.py).
+- Voz: Qwen3-TTS (`qwen-tts`, Apache-2.0) quando instalado no servidor (raiz/contato/voz.py).
 
 ## Valor para quem restaura (relevo, chuva, solo e vegetação secundária)
 
-Usados como dado de entrada no servidor (raiz/restauracao_geo.py), com cache em disco; nada disso é distribuído
+Usados como dado de entrada no servidor (raiz/restauracao/geo.py), com cache em disco; nada disso é distribuído
 junto do produto.
 
 - **Copernicus DEM GLO-30** (AWS Open Data, `copernicus-dem-30m`): licença de uso gratuito, mundial, inclusive
@@ -240,7 +240,7 @@ junto do produto.
 
 ## Caminho da terra e terra pública para restaurar
 
-Usados como dado de entrada no servidor (raiz/terra.py, raiz/terra_publica.py); nada é distribuído com o produto.
+Usados como dado de entrada no servidor (raiz/terra.py, raiz/terra/publica.py); nada é distribuído com o produto.
 
 - **Cadastro Nacional de Florestas Públicas 2025** (Serviço Florestal Brasileiro, Lei 11.284/2006): dado público
   oficial, baixado do portal mapas.florestal.gov.br (item CNFP_2025.zip); o portal não declara licença. Crédito:
@@ -268,8 +268,8 @@ HiGHS dentro. Sem código copiado. A cobrança Pix da reserva usa a API da Abaca
   `raiz/desenvolvedor.py`, `raiz/desenvolvedor_lote.py`, `raiz/desenvolvedor_relatorio.py`, `raiz/restauracao.py`
   (vazamento por fazenda vizinha), `raiz/regras/padroes/edital_profloresta.yaml` e
   `motor/premissas/restauracao_v2026_11.yaml`. Mesmo dono e mesma licença do produto; nada de terceiros.
-- Uso: `raiz/lote.py` (montagem por custo, reserva pela chance alvo, checagens do edital), `raiz/lote_relatorio.py`
-  (CSS, leque em SVG, relatório do lote e folha do dono), `raiz/vazamento.py` (VMD0054 por vizinha),
+- Uso: `raiz/lote.py` (montagem por custo, reserva pela chance alvo, checagens do edital), `raiz/lote/relatorio.py`
+  (CSS, leque em SVG, relatório do lote e folha do dono), `raiz/protecao/vazamento.py` (VMD0054 por vizinha),
   `raiz/restauracao.py` (`cronograma_lote`, `contrato_para_marcos`, `fator_captura_alvo`, curva oficial da URTX, teto
   por bioma, P10/P90 de custo publicados) e `raiz/regras/padroes/edital_profloresta.yaml` (copiado; o cabeçalho aponta
   para `raiz/lote.py`). As premissas foram juntadas num só arquivo, `raiz/regras/padroes/restauracao.yaml`, e o
@@ -354,7 +354,7 @@ subscrição de seguro. Tolerâncias de georreferenciamento do INCRA (0,50 m art
 estudo do próprio INCRA; 7,50 m inacessível). Base legal da regularização da posse em
 `raiz/regras/padroes/regularizacao.yaml`, com a marca do que o jurídico ainda não conferiu.
 
-## Metadados do Release (`raiz/metadados.py`)
+## Metadados do Release (`raiz/publico/metadados.py`)
 
 Bibliotecas usadas sem copiar nem alterar código: croissant-baker 0.8.3 (MIT, Copyright (c) 2025 MIT Laboratory for
 Computational Physiology; https://github.com/MIT-LCP/croissant-baker) e mlcroissant 1.1.1 (Apache-2.0,
@@ -366,11 +366,11 @@ A licença de redistribuição dos dados derivados da Raíz ainda não foi defin
 do software nem uma licença aberta presumida aos dados. As fontes conservam os termos e créditos registrados neste
 NOTICE; disponibilidade pública do arquivo não concede licença adicional.
 
-O exportador `raiz/quantis.py` segue os esquemas v6.0.0 do hubverse-org/schemas e as convenções de hubverse-org/hubDocs,
+O exportador `raiz/medicao/quantis.py` segue os esquemas v6.0.0 do hubverse-org/schemas e as convenções de hubverse-org/hubDocs,
 sem copiar implementação. O cartão de modelo segue a estrutura de Mitchell et al., *Model Cards for Model Reporting*
 (2019), sem reproduzir texto do artigo.
 
-O vocabulário dos cronogramas em `raiz/cadt.py` foi conferido no CAD Trust
+O vocabulário dos cronogramas em `raiz/medicao/cadt.py` foi conferido no CAD Trust
 (https://github.com/Chia-Network/cadt, commit `58927db8f4b4fe558842a688d33f173c41944279`, Apache-2.0).
 Nenhum código do CADT foi copiado; campos e listas são usados para interoperabilidade, sem afirmar registro no CAD Trust.
 A procedência dos uploads usa a ação externa actions/attest-build-provenance v2 (MIT), que chama actions/attest;
@@ -425,7 +425,7 @@ https://github.com/daveshanley/vacuum) e o esquema oficial do registro MCP de 20
 (Apache-2.0 e MIT, https://github.com/modelcontextprotocol/registry). A licença e o hash
 do esquema acompanham a cópia em `infra/mcp/`; nenhum servidor é publicado por essas ferramentas.
 
-## Sanitização de logs (`raiz/logs_seguros.py`)
+## Sanitização de logs (`raiz/protecao/logs.py`)
 
 Microsoft Presidio Analyzer e Anonymizer ([microsoft/presidio](https://github.com/microsoft/presidio), MIT) são usados
 como bibliotecas, sem código copiado. O reconhecimento de nomes em português usa spaCy (MIT) e o modelo

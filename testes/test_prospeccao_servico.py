@@ -8,9 +8,11 @@ from types import SimpleNamespace
 import pytest
 from pypdf import PdfReader
 
-from raiz import imovel_dados, prospeccao_mcp, prospeccao_pdf
-from raiz import prospeccao_servico as servico
-from raiz.prospeccao_acesso import ErroAcesso
+from raiz.leitura import imovel as imovel_dados
+from raiz.prospeccao import mcp as prospeccao_mcp
+from raiz.prospeccao import pdf as prospeccao_pdf
+from raiz.prospeccao import servico
+from raiz.prospeccao.acesso import ErroAcesso
 
 CAR = "PA-1504950-" + "A" * 32
 OUTRO = "PA-1504950-" + "B" * 32

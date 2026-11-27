@@ -8,7 +8,7 @@ from contextlib import contextmanager
 import pytest
 from fastapi.testclient import TestClient
 
-from raiz import salvaguardas
+from raiz.medicao import salvaguardas
 from raiz.pedidos import servico
 from raiz.publica import api, chaves, conta, fazenda
 from raiz.publica import apresentacao as A

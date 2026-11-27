@@ -8,9 +8,8 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import Engine, text
 
-from raiz import prospeccao_acesso as acesso
-from raiz import prospeccao_protecao as protecao
 from raiz.pedidos.servico import ErroPedido, _linha_pedido, _ultima_sugestao
+from raiz.prospeccao import acesso, protecao
 
 from .esquema import Pasta, Retificacao
 from .validacao import Falha, validar

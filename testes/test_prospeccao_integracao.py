@@ -9,9 +9,8 @@ from fastapi.testclient import TestClient
 from pypdf import PdfReader
 from sqlalchemy import text
 
-from raiz import prospeccao_api as api
-from raiz import prospeccao_servico as servico
-from raiz.prospeccao_acesso import ErroAcesso
+from raiz.prospeccao import api, servico
+from raiz.prospeccao.acesso import ErroAcesso
 from testes.test_prospeccao_versoes import alterar, base, escalar, liberar  # noqa: F401
 
 pytestmark = pytest.mark.banco
@@ -47,7 +46,7 @@ def test_exportacoes_marcadas_mesmo_cliente_historico_e_rollback(base, monkeypat
         def falhar(*args, **kwargs):
             raise RuntimeError("falha de renderização")
 
-        mp.setattr("raiz.prospeccao_pdf.gerar_pdf", falhar)
+        mp.setattr("raiz.prospeccao.pdf.gerar_pdf", falhar)
         with pytest.raises(RuntimeError):
             servico.exportar_ficha(eng, cliente, car, formato="pdf")
     assert (

@@ -8,10 +8,10 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 from sqlalchemy import create_engine, text
 
-from raiz import prospeccao_acesso as A
-from raiz.busca import normalizar_codigo
+from raiz.leitura.busca import normalizar_codigo
 from raiz.pedidos import pix
 from raiz.pedidos.servico import criar_cliente
+from raiz.prospeccao import acesso as A
 
 CATALOGO = [{"id": "avulsa", "nome": "Consulta", "creditos": 1, "valor_rs": 12.34}]
 

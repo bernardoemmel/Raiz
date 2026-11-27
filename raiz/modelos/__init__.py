@@ -15,7 +15,7 @@ from raiz.modelos import rastro
 from raiz.modelos.base import Modelo, Pedido, Resposta, Uso
 from raiz.modelos.claude import Claude
 from raiz.modelos.local import LlamaCpp
-from raiz.privacidade import mascarar
+from raiz.protecao.privacidade import mascarar
 
 __all__ = [
     "Claude",

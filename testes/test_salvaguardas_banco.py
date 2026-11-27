@@ -11,10 +11,10 @@ from fastapi.testclient import TestClient
 from pydantic import SecretStr
 from sqlalchemy import create_engine, text
 
-from raiz import salvaguardas as SG
+from raiz.medicao import salvaguardas as SG
 from raiz.pedidos import oferta
 from raiz.pedidos import servico as S
-from raiz.pessoal import gerar_chave
+from raiz.protecao.pessoal import gerar_chave
 from raiz.publica import aprovacao, recibos
 from raiz.publica import chaves as K
 
@@ -218,7 +218,7 @@ def test_revisao_nao_abre_detalhe_sem_liberacao_ou_vinculo_e_respeita_exclusivid
 @pytest.fixture
 def chaves_reserva(monkeypatch):
     chave = gerar_chave()
-    monkeypatch.setattr("raiz.pessoal.config", lambda: type("C", (), {"chave_pessoal": SecretStr(chave)})())
+    monkeypatch.setattr("raiz.protecao.pessoal.config", lambda: type("C", (), {"chave_pessoal": SecretStr(chave)})())
     monkeypatch.setenv("RAIZ_RECIBO_CHAVE", base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())
 
 

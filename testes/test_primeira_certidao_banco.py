@@ -11,12 +11,12 @@ from fastapi import FastAPI, Header, HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 
-from raiz.busca import atualizar_vigente
 from raiz.carga import carregar_pasta
 from raiz.documentos.certidao import api
 from raiz.documentos.certidao import entrada as E
+from raiz.leitura.busca import atualizar_vigente
 from raiz.pedidos import servico as S
-from raiz.pessoal import Cofre, gerar_chave
+from raiz.protecao.pessoal import Cofre, gerar_chave
 from testes.conftest import AMOSTRA
 from testes.test_primeira_certidao import PDF, chave, modelo
 

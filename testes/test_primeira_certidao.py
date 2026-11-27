@@ -14,7 +14,7 @@ from raiz.documentos.certidao import entrada as E
 from raiz.documentos.claude import LeitorClaude
 from raiz.documentos.config import REPO
 from raiz.documentos.simulacao import ClienteSimulado, leitura_exemplo, pdf_exemplo
-from raiz.pessoal import Cofre, SemChavePessoal, gerar_chave
+from raiz.protecao.pessoal import Cofre, SemChavePessoal, gerar_chave
 
 CAR = "PA-1504950-" + "A" * 32
 PEDIDO = str(uuid.UUID(int=41))

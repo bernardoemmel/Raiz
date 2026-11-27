@@ -5,8 +5,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from raiz import rebanho as RB
-from raiz import vazamento as V
+from raiz.medicao import rebanho as RB
+from raiz.protecao import vazamento as V
 from testes.conftest import AMOSTRA
 
 

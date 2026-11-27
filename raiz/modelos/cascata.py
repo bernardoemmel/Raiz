@@ -33,7 +33,7 @@ from sqlalchemy import Connection, text
 
 from raiz.modelos import chamar, rastro, rota
 from raiz.modelos.base import Modelo, Pedido, Resposta
-from raiz.privacidade import mascarar
+from raiz.protecao.privacidade import mascarar
 
 Comparador = Callable[[dict, dict], bool]
 

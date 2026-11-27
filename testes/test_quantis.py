@@ -14,7 +14,7 @@ import pyarrow.parquet as pq
 import pytest
 import yaml
 
-from raiz import quantis as Q
+from raiz.medicao import quantis as Q
 
 CAR = "PA-1504950-" + "A" * 32
 

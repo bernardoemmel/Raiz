@@ -15,7 +15,7 @@ from pathlib import Path
 import geopandas as gpd
 import httpx
 
-from raiz.terra_comprometida import catalogo_fontes, normalizar
+from raiz.terra.comprometida import catalogo_fontes, normalizar
 
 API = "https://zenodo.org/api/records/11459391"
 ARQUIVO = "south_america.gpkg"

@@ -6,8 +6,8 @@ from concurrent.futures import ThreadPoolExecutor
 import httpx
 import pytest
 
-from raiz.atestacao import identificador, registrar
 from raiz.executor.armazem import ArmazemRelease
+from raiz.publico.atestacao import identificador, registrar
 
 
 def test_conserva_ultimo_digest_por_nome_e_arquivos_distintos(tmp_path, monkeypatch):

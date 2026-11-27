@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from raiz import restauracao as R
-from raiz import restauracao_evidencias as E
+from raiz.restauracao import evidencias as E
 
 
 def test_5511_reproduz_verificacao_e_guarda_cada_denominador():

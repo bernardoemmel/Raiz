@@ -12,7 +12,7 @@ from PIL import Image
 from scipy.ndimage import gaussian_filter
 from shapely.geometry import box
 
-from raiz import satelite as S
+from raiz.mapa import satelite as S
 
 GEOM = box(-47.30, -2.30, -47.26, -2.27)
 PODE_VOLTAR = box(-47.29, -2.29, -47.27, -2.28)
@@ -158,7 +158,7 @@ def test_rotas_de_imagem(tmp_path, monkeypatch):
 
 def test_capa_com_thumbhash(tmp_path, monkeypatch):
     """A foto do produtor grava o ThumbHash; imagem antiga sem ele ganha o dela na primeira leitura da capa."""
-    from raiz.thumbhash import hash_para_rgba
+    from raiz.mapa.thumbhash import hash_para_rgba
 
     monkeypatch.setattr(S, "pasta", lambda: tmp_path)
     assert S.capa("PA15049500016") is None  # ainda não gerada: a ficha não espera o satélite

@@ -18,9 +18,9 @@ import uvicorn
 from sqlalchemy import create_engine
 
 from raiz.config import Config, config
-from raiz.privacidade import configurar_log
+from raiz.protecao.api import SegurancaAPI
+from raiz.protecao.privacidade import configurar_log
 from raiz.publica import conta
-from raiz.seguranca_api import SegurancaAPI
 from testes.mcp.car import fonte_sintetica
 
 

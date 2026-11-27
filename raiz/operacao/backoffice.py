@@ -28,9 +28,9 @@ from pydantic import BaseModel
 from sqlalchemy import Connection, Engine, text
 
 from raiz.config import config
-from raiz.logs_seguros import sanitizar_estrutura, sanitizar_log
 from raiz.operacao import alertas as A
 from raiz.operacao.custo import custo_por, gasto_do_mes
+from raiz.protecao.logs import sanitizar_estrutura, sanitizar_log
 
 log = logging.getLogger(__name__)
 LOG_FIM = 2000

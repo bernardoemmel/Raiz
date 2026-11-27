@@ -60,7 +60,7 @@ def test_modelo_que_desobedece_nao_vaza_nome_nem_cpf():
     ls = _linhas(com_nomes=True)
     tudo = json.dumps(ls, ensure_ascii=False, default=str)
     assert "Fulano" not in tudo and "Beltrana" not in tudo
-    from raiz.privacidade import mascarar
+    from raiz.protecao.privacidade import mascarar
 
     assert mascarar(tudo) == tudo  # nada para mascarar: nenhum CPF ou CNPJ inteiro
 
@@ -241,8 +241,8 @@ def test_sede_dentro_na_divisa_e_fora():
 
 
 def test_pedido_da_sede_e_facil_de_ler():
-    from raiz import legibilidade as L
     from raiz.agentes import textos
+    from raiz.contato import legibilidade as L
 
     m = L.medir(textos.pedido_sede())
     assert m["flesch_martins"] >= 50 and m["palavras_por_frase"] <= 15
@@ -306,8 +306,8 @@ def test_cadeia_no_banco(con, tmp_path):
 def test_sede_pelo_whatsapp_guarda_so_o_resultado(con, banco_url):
     from sqlalchemy import create_engine
 
-    from raiz.pessoal import Cofre, gerar_chave, registrar_contato_whatsapp
-    from raiz.whatsapp import enviar_aprovadas, receber_localizacao
+    from raiz.contato.whatsapp import enviar_aprovadas, receber_localizacao
+    from raiz.protecao.pessoal import Cofre, gerar_chave, registrar_contato_whatsapp
 
     cofre = Cofre(gerar_chave())
     cod = "PA-1504950-SEDETESTE"

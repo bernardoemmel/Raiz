@@ -1,4 +1,4 @@
-"""Ficha de cada fazenda gravada em lote (raiz/fichas_lote.py): igual à da rota da API, rows.json do cartão sem código
+"""Ficha de cada fazenda gravada em lote (raiz/lote/fichas.py): igual à da rota da API, rows.json do cartão sem código
 do CAR antes do aceite, manifesto, índice e regravação só do município que mudou."""
 
 import datetime as dt
@@ -7,10 +7,10 @@ import json
 import pytest
 from sqlalchemy import create_engine, text
 
-from raiz import fichas_lote
 from raiz import front_api as api
-from raiz.busca import normalizar_codigo
 from raiz.carga import carregar_pasta
+from raiz.leitura.busca import normalizar_codigo
+from raiz.lote import fichas as fichas_lote
 from testes.conftest import AMOSTRA
 
 pytestmark = pytest.mark.banco

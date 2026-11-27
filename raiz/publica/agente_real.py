@@ -225,7 +225,7 @@ def cliente_claude(*, modo: str = "real") -> AsyncAnthropic:
 
 
 def _sanitizar_texto(texto: str) -> str:
-    from raiz.logs_seguros import sanitizar_log
+    from raiz.protecao.logs import sanitizar_log
 
     # Presidio não deve destruir o alias opaco de um link que será reidratado.
     partes, posicao = [], 0
@@ -566,7 +566,7 @@ def _gravar(caminho: Path, dado: Any) -> None:
 
 
 async def campanha(args, provedor: Provedor) -> dict:
-    from raiz.logs_seguros import sanitizar_estrutura
+    from raiz.protecao.logs import sanitizar_estrutura
 
     args.etapa = "preflight"
     gabarito, gabarito_hash = carregar_gabarito(args.gabarito)

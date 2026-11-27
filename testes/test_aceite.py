@@ -13,10 +13,10 @@ from sqlalchemy import create_engine, text
 from raiz.agentes import aceite
 from raiz.agentes.memoria import checkpointer, preparar
 from raiz.carga import carregar_pasta
+from raiz.contato.whatsapp import aprovar, enviar_aprovadas, receber
 from raiz.modelos.base import Resposta
 from raiz.modelos.cascata import Cascata
-from raiz.pessoal import Cofre, gerar_chave
-from raiz.whatsapp import aprovar, enviar_aprovadas, receber
+from raiz.protecao.pessoal import Cofre, gerar_chave
 from testes.conftest import AMOSTRA
 
 pytestmark = pytest.mark.banco
@@ -83,7 +83,7 @@ def _imoveis(eng, n=2):
 
 
 def _contato(eng, bsuid, wa_id=None):
-    from raiz.pessoal import registrar_contato_whatsapp
+    from raiz.protecao.pessoal import registrar_contato_whatsapp
 
     with eng.begin() as c:
         return registrar_contato_whatsapp(c, bsuid, wa_id, cofre=COFRE)
@@ -241,7 +241,8 @@ def test_webhook_pywa_entrega_bsuid(ambiente, monkeypatch):
     import json
     import time
 
-    from raiz import api, whatsapp
+    from raiz import api
+    from raiz.contato import whatsapp
 
     eng, grafo, deps = ambiente
     cfg = SimpleNamespace(

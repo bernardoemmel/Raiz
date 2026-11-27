@@ -10,7 +10,7 @@ import geopandas as gpd
 import pytest
 from shapely.geometry import box
 
-from raiz.qualidade_dados import ErroQualidade, validar_arquivos, validar_json, validar_pacotes
+from raiz.qualidade.dados import ErroQualidade, validar_arquivos, validar_json, validar_pacotes
 from testes.dados_publicacao import csv_contrato
 
 MUN = "1504950"
@@ -116,7 +116,7 @@ def test_parquet_e_geojson_nao_podem_esconder_coluna_pessoal():
 
 
 def test_pmtiles_inspeciona_todos_os_atributos(tmp_path):
-    from raiz.tiles import gerar
+    from raiz.mapa.tiles import gerar
 
     p = tmp_path / f"camadas_{MUN}.pmtiles"
     geo = gpd.GeoDataFrame({"cod_imovel": [COD], "contato": ["privado"]}, geometry=[box(-50, -5, -49, -4)], crs=4326)
@@ -244,7 +244,7 @@ def test_cli_diretorio_so_admite_nome_de_uf_real(tmp_path, nome):
 
 def test_cli_recusa_subdiretorio_extra(tmp_path):
     (tmp_path / "privado").mkdir()
-    resultado = subprocess.run([sys.executable, "-m", "raiz.qualidade_dados", str(tmp_path)], capture_output=True)
+    resultado = subprocess.run([sys.executable, "-m", "raiz.qualidade.dados", str(tmp_path)], capture_output=True)
     assert resultado.returncode == 1 and b"diret" in resultado.stderr
 
 

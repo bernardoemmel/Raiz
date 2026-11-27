@@ -323,7 +323,7 @@ def test_tarefa_roda_e_grava_o_csv(tmp_path, monkeypatch):
     ("restricao", "bloqueia"), [("exclusao", True), ("ressalva", False), ("livre", False), (None, False)]
 )
 def test_oferta_exclusao_bloqueia_e_ressalva_fica_marcada(restricao, bloqueia, monkeypatch):
-    from raiz import salvaguardas
+    from raiz.medicao import salvaguardas
     from raiz.pedidos import oferta as O
 
     monkeypatch.setattr(salvaguardas, "avaliar", lambda li, v=None: {"pode_originar": True})

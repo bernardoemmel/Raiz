@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from raiz import metadados as M
+from raiz.publico import metadados as M
 
 pytest.importorskip("croissant_baker")
 
@@ -62,7 +62,7 @@ def test_decimal_depois_do_primeiro_bloco_preserva_float(tmp_path, uma_cpu, isol
 import json
 import sys
 import pyarrow as pa
-from raiz import metadados as M
+from raiz.publico import metadados as M
 ficha = M._executar_lote(
     "baker",
     {"pasta": sys.argv[1], "arquivos": [sys.argv[2]], "nome": "sintético", "descricao": "teste"},

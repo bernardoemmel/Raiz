@@ -14,7 +14,7 @@ import pytest
 from sqlalchemy import text
 
 from raiz.documentos.simulacao import cpf_ficticio
-from raiz.pessoal import Cofre, gerar_chave
+from raiz.protecao.pessoal import Cofre, gerar_chave
 from raiz.titulo import laudo as L
 from raiz.titulo import tarefa
 from raiz.titulo import triagem as T

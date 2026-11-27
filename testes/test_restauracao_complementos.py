@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from raiz import restauracao_complementos as C
+from raiz.restauracao import complementos as C
 
 
 class Privado:
@@ -117,14 +117,14 @@ def test_workflow_reserva_uma_cota_e_nao_publica_artifacts_ou_cache():
     assert workflow["concurrency"]["cancel-in-progress"] is False
     passos = workflow["jobs"]["preparar"]["steps"]
     reserva = next(i for i, s in enumerate(passos) if "--reservar 1" in s.get("run", ""))
-    dados = next(i for i, s in enumerate(passos) if "restauracao_complementos" in s.get("run", ""))
+    dados = next(i for i, s in enumerate(passos) if "raiz.restauracao.complementos" in s.get("run", ""))
     assert reserva < dados
     assert "upload-artifact" not in texto and "actions/cache" not in texto
     assert "RAIZ_DADOS_PRIVADOS_TOKEN" in texto and "--sha256" in texto
 
 
 def test_gerar_recusa_resumo_trocado_sem_recalcular(tmp_path, monkeypatch):
-    from raiz import restauracao_desbloqueio as D
+    from raiz.restauracao import desbloqueio as D
 
     resumo = {"opcao": "barata", "uf": "PA", "cenario": "central_r11", "versao_premissas": "historico"}
     tar = pacote(resumo)
@@ -160,7 +160,7 @@ def test_gerar_recusa_pasta_com_saida_anterior(tmp_path):
 
 
 def test_gerar_preserva_as_tres_opcoes_e_origem_sem_modelo_atual(tmp_path, monkeypatch):
-    from raiz import restauracao_desbloqueio as D
+    from raiz.restauracao import desbloqueio as D
 
     m = {
         "uf": "PA",

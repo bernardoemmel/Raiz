@@ -97,7 +97,7 @@ def pedir(con, cod_imovel: str) -> int | None:
     from sqlalchemy import text
 
     from raiz.agentes import textos
-    from raiz.legibilidade import medir
+    from raiz.contato.legibilidade import medir
 
     c = con.execute(
         text("select contato_id from negocio.aceite where cod_imovel = :c and contato_id is not null"),

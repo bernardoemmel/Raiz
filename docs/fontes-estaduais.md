@@ -50,7 +50,7 @@ e o motivo, e decide.
 ## LGPD
 
 - Nome, CPF, CNPJ e campos de pessoa são **apagados na entrada** (`descartar` de cada fonte + detector de colunas
-  pessoais de `raiz/privacidade.py`). Texto livre passa por máscara de CPF/CNPJ.
+  pessoais de `raiz/protecao/privacidade.py`). Texto livre passa por máscara de CPF/CNPJ.
 - Antes de gravar, a coleta confere que nenhum CPF ou CNPJ ficou nos arquivos (`conferir_sem_documento`); se
   ficou, apaga tudo e falha.
 - Achados: GO publica CPF mascarado nos embargos e autos, mas a camada de imóveis do PSA expõe CPF sem máscara

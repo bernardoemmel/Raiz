@@ -12,11 +12,11 @@ import yaml
 from pypdf import PdfReader
 from sqlalchemy import create_engine, text
 
-from raiz import prospeccao_protecao as p
 from raiz.pedidos.servico import criar_cliente
-from raiz.prospeccao_acesso import ErroAcesso
-from raiz.prospeccao_contrato import projetar_ficha
-from raiz.prospeccao_pdf import gerar_pdf
+from raiz.prospeccao import protecao as p
+from raiz.prospeccao.acesso import ErroAcesso
+from raiz.prospeccao.contrato import projetar_ficha
+from raiz.prospeccao.pdf import gerar_pdf
 from raiz.publica import conta as CT
 
 

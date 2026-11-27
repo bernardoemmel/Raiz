@@ -14,7 +14,7 @@ from sqlalchemy.exc import DBAPIError
 
 from raiz.pasta_fiador import servico as s
 from raiz.pasta_fiador.esquema import Retificacao
-from raiz.prospeccao_acesso import ErroAcesso
+from raiz.prospeccao.acesso import ErroAcesso
 from testes.test_pasta_fiador import dados_pasta
 from testes.test_prospeccao_buscas import base as base
 

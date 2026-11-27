@@ -23,7 +23,7 @@ permanecem explícitos como indefinidos no catálogo da assinatura.
 
 ## Como contar a receita
 
-`raiz.prospeccao_precos.simular_receita(modalidade, cenario)` é uma função
+`raiz.prospeccao.precos.simular_receita(modalidade, cenario)` é uma função
 reutilizável sem banco, compra ou consulta ao Pix. `simular_modalidades(cenarios)`
 retorna as três alternativas. Nenhuma delas grava preços ou cenários em arquivo.
 
@@ -31,7 +31,7 @@ Sem parâmetros monetários, a resposta contém as fórmulas e `null` nos result
 que dependem de preço ou custo. Por exemplo:
 
 ```python
-from raiz.prospeccao_precos import simular_modalidades, simular_receita
+from raiz.prospeccao.precos import simular_modalidades, simular_receita
 
 comparacao = simular_modalidades()  # três propostas, preços e receitas indefinidos
 # parametros_recebidos deve conter apenas hipóteses explicitamente informadas:
