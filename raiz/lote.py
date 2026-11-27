@@ -104,8 +104,11 @@ def matriculas(pasta: Path, cod: int) -> dict[str, int]:
     if not f.exists():
         return {}
     t = pd.read_csv(f, dtype=str)
+    if "registro_cns" not in t.columns or "registro_matricula" not in t.columns:
+        # Amostra pública não traz cartório nem matrícula: não dá para contar certidão nem identificar o dono.
+        return {}
     out: dict[str, set] = defaultdict(set)
-    for cod_im, cns, mat in zip(t.cod_imovel, t.get("registro_cns", ""), t.get("registro_matricula", ""), strict=True):
+    for cod_im, cns, mat in zip(t.cod_imovel, t.registro_cns, t.registro_matricula, strict=True):
         cs = str(cns).split(";") if isinstance(cns, str) else [""]
         ms = str(mat).split(";") if isinstance(mat, str) else []
         for i, m in enumerate(ms):

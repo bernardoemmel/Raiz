@@ -12,17 +12,23 @@ from raiz.documentos.armazem import Armazem
 from raiz.documentos.certidao.leitor import ler_certidao
 from raiz.documentos.claude import LeitorClaude
 from raiz.documentos.cli import principal
-from raiz.documentos.config import REPO
 from raiz.documentos.simulacao import ClienteSimulado, leitura_exemplo, pdf_exemplo
 
 HOJE = dt.date(2026, 11, 12)
 IMOVEL = "PA-1504950-0E3B6098A40D44F7B85CFB563EB6A45A"
 
 
+@pytest.fixture(scope="module")
+def entrada_registro(tmp_path_factory):
+    from testes.registro_de_teste import entrada_com_registro_de_teste
+
+    return entrada_com_registro_de_teste(tmp_path_factory.mktemp("entrada") / "amostra")
+
+
 @pytest.fixture(autouse=True)
-def pastas(tmp_path, monkeypatch):
+def pastas(tmp_path, monkeypatch, entrada_registro):
     monkeypatch.setenv("RAIZ_DOCUMENTOS_DIR", str(tmp_path / "docs"))
-    monkeypatch.setenv("RAIZ_DOCUMENTOS_ENTRADA", str(REPO / "dados" / "amostra"))
+    monkeypatch.setenv("RAIZ_DOCUMENTOS_ENTRADA", str(entrada_registro))
 
 
 def _ler(dados, modelo="claude-opus-5-5", texto="x"):

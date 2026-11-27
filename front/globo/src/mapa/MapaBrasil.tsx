@@ -544,17 +544,6 @@ export function MapaBrasil(props: Props) {
     escolhido.current = municipio
   }, [regional, geoMunicipio, municipio])
 
-  // O contorno da fazenda só nascia no zoom 9. Município grande abre abaixo disso e o desenho sumia.
-  // A fonte só tem as fazendas do município aberto, então o limite nacional não se aplica aqui.
-  useEffect(() => {
-    const m = mapaRef.current
-    if (!m || !pronto) return
-    const minimo = municipio ? 0 : ZOOM_IMOVEIS
-    for (const id of ["imoveis", "imoveis-linha", "imoveis-sobrepostos", "imoveis-destaque"]) {
-      if (m.getLayer(id)) m.setLayerZoomRange(id, minimo, 24)
-    }
-  }, [pronto, municipio])
-
   // cor de cada fazenda pela situação, pelo foco do funil e pela camada de assunto (estado de feição: rápido)
   useEffect(() => {
     const m = mapaRef.current

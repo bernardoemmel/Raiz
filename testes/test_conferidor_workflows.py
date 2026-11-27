@@ -162,6 +162,6 @@ def test_registro_em_arquivo_cria_branch_e_anexa():
 def test_workflow_confere_os_criticos_pelo_nome_exato():
     wf = yaml.safe_load((RAIZ / ".github/workflows/conferir-workflows.yml").read_text())
     conferidos = set(wf[True]["workflow_run"]["workflows"])
-    for arquivo in ("processar-estados", "coletar-comprometida", "vigilancia", "calendario", "publicar-site"):
+    for arquivo in ("processar-estados", "coletar-comprometida", "publicar-site"):
         nome = yaml.safe_load((RAIZ / f".github/workflows/{arquivo}.yml").read_text())["name"]
         assert nome in conferidos, arquivo

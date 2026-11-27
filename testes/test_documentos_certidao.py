@@ -13,17 +13,23 @@ from raiz.documentos.certidao.conferencia import conferir
 from raiz.documentos.certidao.leitor import ler_certidao, reconferir
 from raiz.documentos.certidao.regras import area_ha, derivar, normalizar_ato, normalizar_cns, normalizar_matricula
 from raiz.documentos.claude import LeitorClaude
-from raiz.documentos.config import REPO
 from raiz.documentos.simulacao import ClienteSimulado, cpf_ficticio, leitura_exemplo, pdf_exemplo
 
 HOJE = dt.date(2026, 11, 12)
 IMOVEL = "PA-1504950-0E3B6098A40D44F7B85CFB563EB6A45A"  # na amostra: 06.842-9 / 5178 (268,5 ha) e 5177 (31,9 ha)
 
 
+@pytest.fixture(scope="module")
+def entrada_registro(tmp_path_factory):
+    from testes.registro_de_teste import entrada_com_registro_de_teste
+
+    return entrada_com_registro_de_teste(tmp_path_factory.mktemp("entrada") / "amostra")
+
+
 @pytest.fixture(autouse=True)
-def pastas(tmp_path, monkeypatch):
+def pastas(tmp_path, monkeypatch, entrada_registro):
     monkeypatch.setenv("RAIZ_DOCUMENTOS_DIR", str(tmp_path / "docs"))
-    monkeypatch.setenv("RAIZ_DOCUMENTOS_ENTRADA", str(REPO / "dados" / "amostra"))
+    monkeypatch.setenv("RAIZ_DOCUMENTOS_ENTRADA", str(entrada_registro))
 
 
 def _motor():

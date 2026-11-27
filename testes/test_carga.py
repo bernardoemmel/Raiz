@@ -35,7 +35,13 @@ def test_carrega_amostra_e_e_idempotente(engine):
     total = sum(len(d) for d in dfs)
     assert [r.cod_municipio for r in mun] == [1504950, 1507300] and all(r.nova for r in mun)
     assert [r.imoveis for r in mun] == [len(d) for d in dfs] == [880, 9703]
-    assert mun[0].colunas_faltando == ["imoveis.app_escadinha_ha", "imoveis.app_recompor_ha"]
+    # A amostra pública não traz cartório nem matrícula. O contrato ainda espera as colunas.
+    assert mun[0].colunas_faltando == [
+        "certidoes.registro_cns",
+        "certidoes.registro_matricula",
+        "imoveis.app_escadinha_ha",
+        "imoveis.app_recompor_ha",
+    ]
     assert _n(engine, "select count(*) from funil.resultado_imovel") == total
     assert _n(engine, "select count(*) from funil.filtro_imovel") == total
     assert _n(engine, "select count(*) from funil.resumo_municipio") == 144

@@ -271,6 +271,9 @@ def test_cadeia_no_banco(con, tmp_path):
     pasta.mkdir()
     for f in (f"imoveis_{COD}.csv", f"filtros_{COD}.csv", f"certidoes_{COD}.csv"):
         shutil.copy(AMOSTRA / f, pasta / f)
+    from testes.registro_de_teste import preencher_registro_de_teste
+
+    preencher_registro_de_teste(pasta)
     im = pd.read_csv(pasta / f"imoveis_{COD}.csv", low_memory=False)
     im["teste_marca"] = "cadeia"  # muda o hash: a carga não devolve a rodada de outro teste
     im.to_csv(pasta / f"imoveis_{COD}.csv", index=False)

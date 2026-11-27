@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   claude:
-    if: false
     runs-on: ubuntu-latest
     steps:
-      - run: echo "API paga desligada. Este workflow não chama a Anthropic."
+      - name: API paga desligada
+        run: echo "API paga desligada. Este workflow não chama a Anthropic."
