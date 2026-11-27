@@ -7,9 +7,9 @@ Ele roda sozinho toda vez que um destes workflows termina na `main`:
 |---|---|
 | Processar estados (motor) | `processar-estados.yml` |
 | Terra comprometida (coleta diária dos limites públicos) | `coletar-comprometida.yml` |
-| Vigilância diária | `vigilancia.yml` |
-| Calendário diário da Raíz | `calendario.yml` |
 | Publicar o site | `publicar-site.yml` |
+
+Vigilância diária e calendário saíram desta lista em 27/11/2026: a agenda deles foi desligada e a falha automática abria issue todo dia.
 
 ## O que ele faz
 

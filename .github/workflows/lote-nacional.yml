@@ -19,12 +19,8 @@ on:
         description: "JSON CamposPedido; vazio usa um milhão de créditos e o cenário padrão vigente"
         type: string
         default: ""
-  workflow_run:
-    workflows: ["Processar estados (motor)"]
-    types: [completed]
-    branches: [main]
-  schedule:
-    - cron: "41 */2 * * *"
+  # Agenda de 2 em 2 horas removida em 27/11/2026: a rodada falhava sozinha.
+  # O lote nacional continua à mão (workflow_dispatch), para quando o arquivo privado estiver no ar.
 
 permissions:
   contents: write

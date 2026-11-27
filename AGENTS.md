@@ -5,7 +5,8 @@ Este repositório é construído por agentes de IA. As regras são as mesmas par
 
 Resumo do que não pode faltar:
 - Português do Brasil em tudo que o fundador lê.
-- Norte do produto: `docs/cena-alvo.md`. Roteiro: `docs/plano-por-etapa.md` (marque "feito" o que entregar).
+- Norte do produto: `docs/cena-alvo.md`. A demo é o site estático; não ampliar escopo por causa de `docs/plano-por-etapa.md`.
+- API paga (Anthropic, Firecrawl ou outra) só com ordem explícita do fundador.
 - Contrato de dados: `docs/colunas.md`; dados grandes nunca entram no git; Release `dados` só contém agregados e CAR/situação básica. Camadas completas ficam no arquivo privado autenticado (`docs/dados-publicados.md`).
 - Merge: PR com arquivo crítico (`motor/`, `.github/`, dados publicados, publicação do site; lista em
   `docs/politica-de-merge.md`) só entra depois que o fundador põe o rótulo `aprovado-bernardo`. Agente nunca põe nem

@@ -1,27 +1,13 @@
 # Instruções para quem trabalha neste repositório
 
 - Idioma: português do Brasil em tudo que o fundador lê (mensagens, commits, documentação, textos da interface).
-- Construir o produto COMPLETO. Não cortar escopo por prazo do hackathon.
-- Nunca descartar fazendas por tamanho: pequenas se agrupam; agrupar áreas pequenas é um dos valores da Raíz.
-- CPF e CNPJ sempre mascarados; nunca nome ou CPF em dados de treino, logs ou arquivos do repositório.
-- Licenças: evitar AGPL, EUPL, SSPL, BSL e qualquer licença não comercial (NC). GPL só em serviço no servidor,
-  nunca embutido no produto distribuído. Ao copiar código de terceiros, registrar em `NOTICE.md`.
-- Preferir ferramentas abertas: o objetivo é construir inteligência própria da Raíz, que aprende com os próprios
-  acertos e erros (guardar cada previsão com a versão do modelo e comparar com o resultado real).
+- Norte do produto: `docs/cena-alvo.md`. O cliente pede "1 milhão de créditos" e o mapa monta três lotes. Pequenas fazendas entram agrupadas; nunca são descartadas por tamanho.
+- A demo do hackathon é o site estático. Não acrescente serviço, workflow ou dependência que a demo não usa.
+- API paga (Anthropic, Firecrawl ou outra) só com ordem explícita do fundador. Nenhum workflow pode receber essa chave.
+- CPF e CNPJ sempre mascarados. Nunca grave nome ou documento de dono em dado de treino, log ou arquivo do repositório. Matrícula e código de cartório não entram na amostra pública.
+- Licenças: sem AGPL, EUPL, SSPL, BSL e sem licença não comercial (NC). GPL só em serviço no servidor, nunca no produto distribuído. Código de terceiros entra em `NOTICE.md`.
 - O motor (`motor/`) é o contrato de dados: ler colunas pelo nome (`docs/colunas.md`) e tolerar colunas novas.
 - Segredos só em variáveis de ambiente (`.env`, nunca no git). Dados grandes não entram no git.
-- Roteiro de construção: `docs/plano-por-etapa.md`.
-- Norte do produto: `docs/cena-alvo.md` (o cliente pede "1 milhão de créditos" e o mapa monta o melhor lote). Todo trabalho deve aproximar essa cena.
-- Entrega: ao terminar, puxe a main, resolva os conflitos, abra o PR e, com o CI verde, faça você mesmo o merge na main.
-  Fora das áreas críticas (abaixo), não precisa pedir permissão ao fundador nem esperar outra sessão. Nunca force-push na main.
-- Main protegida: todo código entra por PR, com os checks do CI verdes (agentes, workflows, segredos, front,
-  seguranca, testes_python, referencia_para, checagens, e2e, carga, mcp, aprovacao). Proibido push direto, force-push e
-  apagar a main, inclusive para administradores. Com os checks verdes, quem abriu o PR faz o merge.
-  Nunca desligue, pule ou marque como opcional um check para conseguir mergear; conserte o que falhou.
-- Áreas críticas (motor/, .github/, código e scripts que mudam dados publicados, publicação do site, migrações,
-  estas regras; lista em `docs/politica-de-merge.md`): o check `aprovacao` só passa com o rótulo
-  `aprovado-bernardo`, que só o fundador põe. Agente NUNCA põe nem tira esse rótulo. Abra o PR, avise o fundador
-  com o link e espere; o resto (docs, testes, telas, API) continua com merge livre e CI verde.
-- Automações não gravam na main. Workflows publicam em Releases, tags de trava ou no Pages; se um workflow precisar
-  mudar arquivo do repositório, ele abre um PR. O painel do `motor/README.md` não é mais regravado pelo Actions
-  (a situação dos estados fica no `estados.json` do Release `dados`). Configuração da proteção: `docs/protecao-main.md`.
+- Entrega: branch própria, PR para a `main`, sem push direto e sem force-push. Fora das áreas críticas, com o CI verde, quem abriu o PR faz o merge. Nunca desligue um check para conseguir mergear.
+- Áreas críticas (`motor/`, `.github/`, dados publicados, publicação do site, migrações e estas regras; lista em `docs/politica-de-merge.md`): o check `aprovacao` só passa com o rótulo `aprovado-bernardo`, que só o fundador põe. Agente nunca põe nem tira esse rótulo.
+- Não desligue o workflow **Processar estados (motor)** nem apague Release, branch remota ou dado já calculado. Uma falha de publicação não autoriza jogar fora o que já foi feito.
