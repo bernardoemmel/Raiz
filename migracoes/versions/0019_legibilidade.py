@@ -1,5 +1,6 @@
 """Nota de legibilidade de cada mensagem ao dono (E9, passo 1): pessoal.mensagem_saida.legibilidade guarda todas as
-contagens e as três versões do Flesch (ALT, Martins, LanguageTool), com a versão do medidor (raiz/contato/legibilidade.py).
+contagens e as três versões do Flesch (ALT, Martins, LanguageTool), com a versão do medidor
+(raiz/contato/legibilidade.py).
 Fica junto da mensagem para comparar depois a nota com o que o dono entendeu.
 
 Revision ID: 0019
