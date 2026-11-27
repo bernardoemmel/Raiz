@@ -119,16 +119,24 @@ def executar(resultado: Path) -> dict:
                 cargas.append(dado)
         with _etapa("corpus"):
             pendente = modulo.corpus_pendente(produto.ambiente, produto.inventario)
-        if pendente:
+        if pendente or not os.environ.get("ANTHROPIC_API_KEY"):
             # Exceção autorizada somente neste ponto, após todos os ensaios reais.
             # A saída do contexto ainda confere a vigília de rede; falha reprova.
-            return {
-                "estado": "parcial",
-                "aviso": (
+            # Sem a chave, o corpus não roda: a Raíz não chama API paga sem autorização.
+            if pendente:
+                aviso = (
                     "Latência e carga MCP passaram; corpus não executado: "
                     "agente leitor de documentos pendente de Produto e regras. "
                     "Aviso autorizado somente para essa dependência; corpus não aprovado."
-                ),
+                )
+            else:
+                aviso = (
+                    "Latência e carga MCP passaram; corpus do modelo não executado: "
+                    "API paga desligada, sem ANTHROPIC_API_KEY. Corpus não aprovado."
+                )
+            return {
+                "estado": "parcial",
+                "aviso": aviso,
                 "ensaios_executados": {"latencia": True, "carga": True, "corpus": False},
                 "latencia": latencia,
                 "carga": cargas,

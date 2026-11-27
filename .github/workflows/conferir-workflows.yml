@@ -8,8 +8,6 @@ on:
     workflows:
       - "Processar estados (motor)"
       - "Terra comprometida (coleta diária dos limites públicos)"
-      - "Vigilância diária"
-      - "Calendário diário da Raíz"
       - "Publicar o site"
     types: [completed]
     branches: [main]

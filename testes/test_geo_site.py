@@ -374,6 +374,34 @@ def test_municipio_novo_atualiza_uf_pais_recortes_e_proveniencia_sem_sobrepor(ge
     assert len(pedidos) == 2, "Rodada normal reutiliza fonte/ano/hash sem nova consulta."
 
 
+def test_uf_com_codigo_presente_troca_a_divisa_antiga_do_terrabrasilis(geo, monkeypatch):
+    """O código existir na malha velha não prova que a divisa está certa. A UF publicada vai para o IBGE."""
+    antigo = geo.feicao(box(0, 0, 4, 1), {"cod_ibge": "1505536", "nome": "Divisa antiga", "uf": "PA"})
+    geo.salvar("brasil_municipios.geojson", [antigo])
+    geo.salvar("brasil_estados.geojson", [geo.feicao(box(0, 0, 4, 1), {"uf": "PA", "cod": "15"})])
+    dados = gpd.GeoDataFrame(
+        {"CD_MUN": ["1505536"], "NM_MUN": ["Parauapebas"]},
+        geometry=[box(0, 0, 1, 1)],
+        crs=4674,
+    )
+
+    def baixar(url, **_kwargs):
+        if url == geo.MALHAS_IBGE:
+            return SimpleNamespace(text='<a href="municipio_2025/">2025</a>')
+        assert url.endswith("municipio_2025/UFs/PA/PA_Municipios_2025.zip")
+        return SimpleNamespace(content=b"ZIP PA")
+
+    monkeypatch.setattr(geo, "baixar", baixar)
+    monkeypatch.setattr(gpd, "read_file", lambda *_a, **_kw: dados.copy())
+    geo.atualizar_malha_ibge({"1505536": Path("imoveis.csv")})
+    feicoes = json.loads((geo.SAIDA / "brasil_municipios.geojson").read_text())["features"]
+    assert len(feicoes) == 1
+    assert feicoes[0]["properties"]["nome"] == "Parauapebas"
+    assert shape(feicoes[0]["geometry"]).area == pytest.approx(1)
+    registro = json.loads((geo.SAIDA / "cache" / "malhas-ibge-v1.json").read_text())
+    assert registro["PA"]["ano"] == 2025
+
+
 def test_municipio_novo_em_uf_ja_promovida_busca_edicao_mais_recente(geo, malha_desmembrada, monkeypatch):
     codigos, _, dados, pedidos = malha_desmembrada
     cache = geo.SAIDA / "cache"

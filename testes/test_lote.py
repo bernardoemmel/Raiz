@@ -135,6 +135,17 @@ def test_o_que_destrava_o_lote(lote):
     assert td["cronograma_lote"]["chance_todos"] >= 0.88
 
 
+def test_matriculas_so_contam_quando_o_arquivo_traz_cartorio(tmp_path):
+    assert L.matriculas(AMOSTRA, 1504950) == {}
+    (tmp_path / "certidoes_1504950.csv").write_text(
+        "cod_imovel,registro_cns,registro_matricula,ha_sobre_car,parcelas\n"
+        "PA-1,0000000,DEMO-1,1,1\n"
+        "PA-1,0000000,DEMO-2,1,1\n",
+        encoding="utf-8",
+    )
+    assert L.matriculas(tmp_path, 1504950) == {"PA-1": 2}
+
+
 def test_certidoes_para_os_5_por_cento_homologados(lote):
     ce = lote["resumo"]["certidoes"]
     t = lote["tabela"]
@@ -143,7 +154,8 @@ def test_certidoes_para_os_5_por_cento_homologados(lote):
     assert ce["por_caminho"]["matricula_a_conferir"]["fazendas"] > 0 and ce["falta_ha"] > 0
     assert ce["cumpre_com_pedidos"] and ce["ha_cobertos"] >= ce["falta_ha"]
     assert int(t.pedir_certidao.sum()) == ce["fazendas_a_pedir"] and ce["certidoes_a_pedir"] >= ce["fazendas_a_pedir"]
-    assert ce["matriculas_conhecidas"] > 0  # cartório e matrícula do SIGEF (certidoes_<mun>.csv)
+    # A amostra pública não traz cartório nem matrícula: o número identifica o dono.
+    assert ce["matriculas_conhecidas"] == 0
     # com a certidão conferida a fazenda já conta como homologada
     o = lote["resumo"]
     x = L._certidoes(t[t.papel.isin(["titular", "reserva"])].assign(caminho="matricula_conferida"), {}, 0.05)

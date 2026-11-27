@@ -79,12 +79,36 @@ describe("páginas para pessoas e agentes", () => {
     expect(local).not.toContain("987,65")
     expect(local).not.toContain("| Imóveis analisados | 3 |")
     for (const arq of ["index.md", "dados/index.md", "dados/estados/PA.md"]) {
-      expect(ler(saida, arq)).toContain("totais deste recorte foram suprimidos")
-      expect(ler(saida, arq)).not.toContain("14 imóveis")
+      const texto = ler(saida, arq)
+      expect(texto).toContain("11 imóveis, 5 aptos no funil e 123,4 ha")
+      expect(texto).toContain("Um município com menos de cinco imóveis fica de fora desta soma.")
+      expect(texto).not.toContain("14 imóveis")
+      expect(texto).not.toContain("987,65")
+      expect(texto).not.toContain("totais deste recorte foram suprimidos")
     }
     const dados = schema(saida)["@graph"].filter((g: Record<string, unknown>) => g["@type"] === "Dataset")
     expect(dados[0].distribution).toHaveLength(1)
     expect(dados[0].distribution[0].name).toBe("resumo_PA.csv")
+  })
+
+  it("inclui o estado que está no mapa com lista pública mesmo sem tabela de resumo", () => {
+    const saida = preparar()
+    const rs = { uf: "RS", cod: "43", nome: "Rio Grande do Sul", municipios_ibge: 497, municipios: 291, com_lista: ["4300034"], situacao: "incompleto" as const, completo: false, fora_da_lista: [] }
+    paginasAgentes({
+      saida, base: "/Raiz/", catalogo: {
+        estados: { ...estados, estados: [...estados.estados, rs] },
+        municipios: [municipio],
+        arquivos: { PA: ["resumo_PA.csv", "imoveis_1505536.csv"], RS: ["imoveis_basicos_4300034.csv"] },
+      },
+    })
+    const texto = ler(saida, "index.md")
+    expect(texto).toContain("2 estados")
+    expect(texto).toContain("Rio Grande do Sul (RS)")
+    expect(texto).toContain("está no mapa com lista pública de fazendas, sem tabela de resumo neste build.")
+    const pagina = ler(saida, "dados/estados/RS.md")
+    expect(pagina).toContain("291 de 497")
+    expect(pagina).not.toContain("registro_matricula")
+    expect(pagina).not.toContain("registro_cns")
   })
 
   it("não anuncia estados que tenham somente listas privadas de fazendas", () => {

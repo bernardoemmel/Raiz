@@ -1,49 +1,16 @@
 name: Claude (tarefas por issue)
 
-# O fundador abre uma issue (ou comenta numa issue/PR) mencionando @claude com o que quer. O Claude Code roda aqui,
-# pago pelos créditos da API (segredo ANTHROPIC_API_KEY), segue o CLAUDE.md e abre o PR com o trabalho.
-# Repositório público: só o dono do repositório aciona; menção de qualquer outra pessoa é ignorada.
+# Desligado em 27/11/2026: a ação chamava a API paga da Anthropic. O Bernardo não autoriza esse gasto.
+# O histórico do git guarda a versão anterior. Não recolocar o segredo nem o cron sem ordem explícita.
 on:
-  issues:
-    types: [opened, assigned]
-  issue_comment:
-    types: [created]
-  pull_request_review_comment:
-    types: [created]
+  workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
-  issues: write
-  id-token: write
-  actions: read
-
-concurrency:
-  group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
-  cancel-in-progress: false
+  contents: read
 
 jobs:
   claude:
-    if: >-
-      github.actor == github.repository_owner && (
-        (github.event_name == 'issues' && contains(format('{0} {1}', github.event.issue.title, github.event.issue.body), '@claude')) ||
-        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude'))
-      )
     runs-on: ubuntu-latest
-    timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: astral-sh/setup-uv@v7
-        with:
-          version: "0.13.6"
-      - uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          claude_args: >-
-            --max-turns 200
-            --append-system-prompt "Siga o CLAUDE.md do repositório. Escreva em português do Brasil. Trabalhe num
-            branch próprio, rode os testes do que mudou (uv run pytest nos arquivos afetados; npm test em front/) e
-            abra o PR com um resumo simples. Nunca mexa em segredos nem faça push na main."
+      - name: API paga desligada
+        run: echo "API paga desligada. Este workflow não chama a Anthropic."

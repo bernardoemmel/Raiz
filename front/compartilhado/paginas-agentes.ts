@@ -42,11 +42,18 @@ const disponivel = (valor: number | null) => valor === null ? "Ainda não public
 // Sem contagem conhecida não é possível confirmar o grupo mínimo de cinco imóveis para publicar suas medidas.
 const indicador = (m: FunilMunicipio, campo: Indicador) => protegido(m) ? "Suprimido" : disponivel(semContagem(m) ? null : num(m.linha, campo))
 const totalPublico = (ms: FunilMunicipio[]) => {
-  if (ms.some(protegido)) return "Os totais deste recorte foram suprimidos porque incluem grupos com menos de cinco imóveis."
-  const imoveis = soma(ms, "imoveis"), aptos = soma(ms, "aptas_carbono"), hectares = soma(ms, "ha_carbono")
+  // Grupo pequeno continua suprimido na linha do município. A soma do Brasil usa só o que já pode ser publicado,
+  // senão um município com menos de cinco imóveis escondia o total do país.
+  const abertos = ms.filter((m) => !protegido(m))
+  const omitidos = ms.length - abertos.length
+  const nota = omitidos === 0 ? "" : omitidos === 1
+    ? " Um município com menos de cinco imóveis fica de fora desta soma."
+    : ` ${numero(omitidos)} municípios com menos de cinco imóveis ficam de fora desta soma.`
+  if (!abertos.length) return "Os totais deste recorte foram suprimidos porque incluem apenas grupos com menos de cinco imóveis."
+  const imoveis = soma(abertos, "imoveis"), aptos = soma(abertos, "aptas_carbono"), hectares = soma(abertos, "ha_carbono")
   if (imoveis === null || aptos === null || hectares === null)
-    return `Há medidas ainda não publicadas neste recorte. Imóveis: ${disponivel(imoveis)}. Aptos no funil: ${disponivel(aptos)}. Área de carbono nas fazendas aptas (ha): ${disponivel(hectares)}.`
-  return `${numero(imoveis)} imóveis, ${numero(aptos)} aptos no funil e ${numero(hectares)} ha de área de carbono nas fazendas aptas.`
+    return `Há medidas ainda não publicadas neste recorte. Imóveis: ${disponivel(imoveis)}. Aptos no funil: ${disponivel(aptos)}. Área de carbono nas fazendas aptas (ha): ${disponivel(hectares)}.${nota}`
+  return `${numero(imoveis)} imóveis, ${numero(aptos)} aptos no funil e ${numero(hectares)} ha de área de carbono nas fazendas aptas.${nota}`
 }
 /** O funil usa zero como padrão de cálculo. Só publicar um indicador opcional se a fonte trouxer um número. */
 const indicadorOpcional = (m: FunilMunicipio, coluna: string, rotulo: string) => {
@@ -96,14 +103,21 @@ Este documento geral não contém uma ficha individual nem pressupõe o aceite d
   }
 
   // Defesa adicional: nem um catálogo antigo pode anunciar CSV por imóvel como download aberto.
-  const estados = catalogo?.estados.estados.filter((e) => catalogo.arquivos[e.uf]?.includes(`resumo_${e.uf}.csv`)) ?? []
-  const municipios = catalogo?.municipios.filter((m) => /^\d{7}$/.test(m.cod_ibge) && estados.some((e) => e.uf === m.uf)) ?? []
+  // O Rio Grande do Sul entrou no mapa com lista pública e sem resumo_RS.csv: a página dizia 26 estados.
+  const temResumo = (uf: string) => catalogo?.arquivos[uf]?.includes(`resumo_${uf}.csv`) ?? false
+  const temListaPublica = (uf: string) => catalogo?.arquivos[uf]?.some((f) => /^imoveis_basicos_\d{7}\.csv$/.test(f)) ?? false
+  const estados = catalogo?.estados.estados.filter((e) => temResumo(e.uf) || (e.municipios > 0 && temListaPublica(e.uf))) ?? []
+  const municipios = catalogo?.municipios.filter((m) => /^\d{7}$/.test(m.cod_ibge) && estados.some((e) => e.uf === m.uf) && temResumo(m.uf)) ?? []
   const origem = catalogo?.estados.pasta === "amostra" ? "amostra do repositório" : "dados disponíveis neste build"
+  const semTabela = estados.filter((e) => !temResumo(e.uf))
+  const avisoTabela = semTabela.length
+    ? ` ${semTabela.map((e) => md(e.nome)).join(", ")} ${semTabela.length === 1 ? "está" : "estão"} no mapa com lista pública de fazendas, sem tabela de resumo neste build.`
+    : ""
   const cobertura = estados.length
-    ? `Esta publicação reúne ${numero(estados.length)} estados e ${numero(municipios.length)} municípios com resumo. ${totalPublico(municipios)} Origem: ${origem}.`
+    ? `Esta publicação reúne ${numero(estados.length)} estados e ${numero(municipios.length)} municípios com resumo.${avisoTabela} ${totalPublico(municipios)} Origem: ${origem}.`
     : "Esta publicação não inclui tabelas do motor. Não é possível informar cobertura ou somar áreas neste build."
   const atualizado = catalogo?.estados.gerado_em ? `\nData do manifesto dos dados: ${md(catalogo.estados.gerado_em)}.\n` : ""
-  const linksEstados = estados.map((e) => `- [${md(e.nome)} (${e.uf})](${link(`dados/estados/${e.uf}.md`)}): ${numero(e.municipios)} de ${numero(e.municipios_ibge)} municípios processados; ${e.completo ? "cobertura completa" : "cobertura parcial"}.`).join("\n")
+  const linksEstados = estados.map((e) => `- [${md(e.nome)} (${e.uf})](${link(`dados/estados/${e.uf}.md`)}): ${numero(e.municipios)} de ${numero(e.municipios_ibge)} municípios processados; ${e.completo ? "cobertura completa" : "cobertura parcial"}.${temResumo(e.uf) ? "" : " Sem tabela de resumo neste build."}`).join("\n")
   gravar("index.md", `# Raíz: onde dá para restaurar
 
 ${cobertura}
@@ -144,6 +158,22 @@ ${LIMITE}
   const datasets: object[] = []
   for (const e of estados) {
     const ms = municipios.filter((m) => m.uf === e.uf).sort((a, b) => a.municipio.localeCompare(b.municipio, "pt-BR"))
+    if (!temResumo(e.uf)) {
+      gravar(`dados/estados/${e.uf}.md`, `# ${md(e.nome)} (${e.uf}): dados da Raíz
+
+Cobertura do manifesto: ${numero(e.municipios)} de ${numero(e.municipios_ibge)} municípios processados. ${e.completo ? "Estado completo na lista do IBGE." : "A cobertura ainda é parcial."}
+
+A tabela de resumo deste estado não entrou neste build. O mapa e as listas públicas de fazendas continuam disponíveis. Nenhum total foi inventado a partir da lista.
+
+${LIMITE}
+
+[Ver o estado no mapa](${link(`#/estado/${e.uf}`)})
+
+[Fontes](${link("fontes.md")})
+
+[Catálogo](${link("dados/index.md")})`)
+      continue
+    }
     const arquivos = catalogo!.arquivos[e.uf].filter((f) => f === `resumo_${e.uf}.csv`)
     const resumo = arquivos.includes(`resumo_${e.uf}.csv`) ? `resumo_${e.uf}.csv` : null
     // O JSON-LD aponta ao resumo do estado; a página do estado lista todas as tabelas sem inflar o HTML inicial.

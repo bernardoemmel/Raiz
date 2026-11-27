@@ -10,9 +10,9 @@
 #   FIRMS_MAP_KEY                                     (opcional) chave da API do FIRMS
 name: Vigilância diária
 
+# Agenda diária removida em 27/11/2026: a rodada falhava e o conferidor abria issue sozinho.
+# O comando continua disponível à mão, quando houver lote privado para vigiar.
 on:
-  schedule:
-    - cron: "17 9 * * *" # 06:17 em Brasília, todo dia
   workflow_dispatch:
     inputs:
       fontes:

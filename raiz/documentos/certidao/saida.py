@@ -56,6 +56,12 @@ def conferencias_do_municipio(cod_municipio: int, armazem: Armazem | None = None
     motor = tabelas.ler("certidoes", cod_municipio)
     if motor is None:
         raise FileNotFoundError(f"certidoes_{cod_municipio}.csv não encontrado nas pastas de entrada")
+    if "registro_cns" not in motor.columns or "registro_matricula" not in motor.columns:
+        motor = motor.copy()
+        if "registro_cns" not in motor.columns:
+            motor["registro_cns"] = pd.NA
+        if "registro_matricula" not in motor.columns:
+            motor["registro_matricula"] = pd.NA
     vig = armazem.conferencias_vigentes(list(motor.cod_imovel.unique()))
     por_chave = {
         (c["cod_imovel"], normalizar_cns(c["registro_cns"]), normalizar_matricula(c["registro_matricula"])): c

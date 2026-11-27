@@ -2,12 +2,11 @@
 # Toda segunda de manhã: roda a busca, guarda o estado (o que já foi visto) no Release `busca`, mostra a lista no resumo
 # do workflow e abre uma issue quando aparece coisa nova. Só dado público (título, link, data, órgão); as leituras de
 # certidão nunca passam por aqui.
-# Segredo opcional FIRECRAWL_API_KEY: abre o registro novo da Verra e o Diário Oficial quando o acesso direto falha.
+# Agenda removida em 27/11/2026. O Firecrawl é API paga e não entra neste workflow.
+# Sem a chave, a Verra nova e o Diário Oficial ficam como fonte indisponível em vez de gerar cobrança.
 name: Busca semanal de registros e editais
 
 on:
-  schedule:
-    - cron: "23 11 * * 1" # segunda, 8h23 em Brasília
   workflow_dispatch:
 
 permissions:
@@ -23,7 +22,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RAIZ_DOCUMENTOS_DIR: dados/documentos
-      FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7

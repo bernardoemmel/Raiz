@@ -57,7 +57,7 @@ export function PainelBrasil({ municipios, comLista, estados, uf, pontos, carreg
   return (
     <div className="painel-conteudo">
       <TituloBrasil />
-      <FraseResumo municipios={municipios} mostrarEstados />
+      <FraseResumo municipios={municipios} mostrarEstados ufsNoMapa={comDado.length} />
       <Numeros municipios={municipios} />
       <PainelCobertura key="cobertura" cobertura={cobertura} carregando={carregandoCobertura} />
       {andamento}
@@ -199,9 +199,10 @@ function PainelEstado({ uf, municipios, comLista, estados, cobertura, andamento 
 }
 
 /** O resumo de aptidão e o cadastro cartográfico podem ter escopos e datas diferentes. */
-function FraseResumo({ municipios, mostrarEstados = false }: { municipios: FunilMunicipio[]; mostrarEstados?: boolean }) {
+function FraseResumo({ municipios, mostrarEstados = false, ufsNoMapa }: { municipios: FunilMunicipio[]; mostrarEstados?: boolean; ufsNoMapa?: number }) {
   const n = numerosDoBrasil(municipios)
-  const ufs = new Set(municipios.map((m) => m.uf)).size
+  // O resumo pode não ter a tabela de um estado que já está no mapa (foi o caso do RS).
+  const ufs = ufsNoMapa && ufsNoMapa > 0 ? ufsNoMapa : new Set(municipios.map((m) => m.uf)).size
   return <>
     <p className="frase">
       Resumo de aptidão disponível em {fmtInt(n.municipios)} {n.municipios === 1 ? "município" : "municípios"}

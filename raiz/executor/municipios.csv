@@ -148,7 +148,7 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 1400456,Pacaraima,14,4.4799,-61.1477
 1400472,Rorainópolis,14,0.939956,-60.4389
 1400506,São João da Baliza,14,0.951659,-59.9133
-1400605,São Luiz,14,1.01019,-60.0419
+1400605,São Luiz do Anauá,14,1.01019,-60.0419
 1400704,Uiramutã,14,4.60314,-60.1815
 1500107,Abaetetuba,15,-1.72183,-48.8788
 1500131,Abel Figueiredo,15,-4.95333,-48.3933
@@ -240,7 +240,7 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 1505494,Palestina do Pará,15,-5.74027,-48.3181
 1505502,Paragominas,15,-3.00212,-47.3527
 1505536,Parauapebas,15,-6.06781,-49.9037
-1505551,Pau d'Arco,15,-1.59772,-46.9268
+1505551,Pau D'Arco,15,-1.59772,-46.9268
 1505601,Peixe-Boi,15,-1.19382,-47.324
 1505635,Piçarra,15,-6.43778,-48.8716
 1505650,Placas,15,-3.86813,-54.2124
@@ -363,7 +363,7 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 1707652,Figueirópolis,17,-12.1312,-49.1748
 1707702,Filadélfia,17,-7.33501,-47.4954
 1708205,Formoso do Araguaia,17,-11.7976,-49.5316
-1708254,Fortaleza do Tabocão,17,-9.05611,-48.5206
+1708254,Tabocão,17,-9.05611,-48.5206
 1708304,Goianorte,17,-8.77413,-48.9313
 1709005,Goiatins,17,-7.71478,-47.3252
 1709302,Guaraí,17,-8.83543,-48.5114
@@ -944,7 +944,7 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 2304236,Croatá,23,-4.40481,-40.9022
 2304251,Cruz,23,-2.91813,-40.176
 2304269,Deputado Irapuan Pinheiro,23,-5.91485,-39.257
-2304277,Ererê,23,-6.02751,-38.3461
+2304277,Ereré,23,-6.02751,-38.3461
 2304285,Eusébio,23,-3.8925,-38.4559
 2304301,Farias Brito,23,-6.92146,-39.5651
 2304350,Forquilha,23,-3.79945,-40.2634
@@ -1075,7 +1075,7 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 2314003,Várzea Alegre,23,-6.78264,-39.2942
 2314102,Viçosa do Ceará,23,-3.5667,-41.0916
 2400109,Acari,24,-6.4282,-36.6347
-2400208,Açu,24,-5.58362,-36.914
+2400208,Assú,24,-5.58362,-36.914
 2400307,Afonso Bezerra,24,-5.49229,-36.5075
 2400406,Água Nova,24,-6.20351,-38.2941
 2400505,Alexandria,24,-6.40533,-38.0142
@@ -1085,8 +1085,8 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 2400901,Antônio Martins,24,-6.21367,-37.8834
 2401008,Apodi,24,-5.65349,-37.7946
 2401107,Areia Branca,24,-4.95254,-37.1252
-2401206,Arês,24,-6.18831,-35.1608
-2401305,Augusto Severo (Campo Grande),24,-5.86206,-37.3135
+2401206,Arez,24,-6.18831,-35.1608
+2401305,Campo Grande,24,-5.86206,-37.3135
 2401404,Baía Formosa,24,-6.37161,-35.0033
 2401453,Baraúna,24,-5.06977,-37.6129
 2401503,Barcelona,24,-5.94284,-35.9247
@@ -1132,7 +1132,7 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 2405009,Jaçanã,24,-6.41856,-36.2031
 2405108,Jandaíra,24,-5.35211,-36.1278
 2405207,Janduís,24,-6.01474,-37.4048
-2405306,Januário Cicco (Boa Saúde),24,-6.16566,-35.6219
+2405306,Januário Cicco,24,-6.16566,-35.6219
 2405405,Japi,24,-6.46544,-35.9346
 2405504,Jardim de Angicos,24,-5.64999,-35.9713
 2405603,Jardim de Piranhas,24,-6.37665,-37.3496
@@ -1165,7 +1165,7 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 2408102,Natal,24,-5.79357,-35.1986
 2408201,Nísia Floresta,24,-6.09329,-35.1991
 2408300,Nova Cruz,24,-6.47511,-35.4286
-2408409,Olho-d'Água do Borges,24,-5.9486,-37.7047
+2408409,Olho d'Água do Borges,24,-5.9486,-37.7047
 2408508,Ouro Branco,24,-6.6958,-36.9428
 2408607,Paraná,24,-6.47565,-38.3057
 2408706,Paraú,24,-5.76893,-37.1032
@@ -1396,7 +1396,7 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 2512309,Princesa Isabel,25,-7.73175,-37.9886
 2512408,Puxinanã,25,-7.15479,-35.9543
 2512507,Queimadas,25,-7.35029,-35.9031
-2512606,Quixabá,25,-7.0224,-37.1458
+2512606,Quixaba,25,-7.0224,-37.1458
 2512705,Remígio,25,-6.94992,-35.8011
 2512721,Pedro Régis,25,-6.63323,-35.2966
 2512747,Riachão,25,-6.54269,-35.661
@@ -1613,14 +1613,14 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 2612802,Santa Terezinha,26,-7.37696,-37.4787
 2612901,São Benedito do Sul,26,-8.8166,-35.9453
 2613008,São Bento do Una,26,-8.52637,-36.4465
-2613107,São Caetano,26,-8.33763,-36.2869
+2613107,São Caitano,26,-8.33763,-36.2869
 2613206,São João,26,-8.87576,-36.3653
 2613305,São Joaquim do Monte,26,-8.43196,-35.8035
 2613404,São José da Coroa Grande,26,-8.88937,-35.1515
 2613503,São José do Belmonte,26,-7.85723,-38.7577
 2613602,São José do Egito,26,-7.46945,-37.274
 2613701,São Lourenço da Mata,26,-8.00684,-35.0124
-2613800,São Vicente Ferrer,26,-7.58969,-35.4808
+2613800,São Vicente Férrer,26,-7.58969,-35.4808
 2613909,Serra Talhada,26,-7.98178,-38.289
 2614006,Serrita,26,-7.94041,-39.2951
 2614105,Sertânia,26,-8.06847,-37.2684
@@ -1751,7 +1751,7 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 2709202,Traipu,27,-9.96262,-37.0071
 2709301,União dos Palmares,27,-9.15921,-36.0223
 2709400,Viçosa,27,-9.36763,-36.2431
-2800100,Amparo de São Francisco,28,-10.1348,-36.935
+2800100,Amparo do São Francisco,28,-10.1348,-36.935
 2800209,Aquidabã,28,-10.278,-37.0148
 2800308,Aracaju,28,-10.9091,-37.0677
 2800407,Arauá,28,-11.2614,-37.6201
@@ -1774,7 +1774,7 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 2802304,Frei Paulo,28,-10.5513,-37.5279
 2802403,Gararu,28,-9.9722,-37.0869
 2802502,General Maynard,28,-10.6835,-36.9838
-2802601,Gracho Cardoso,28,-10.2252,-37.2006
+2802601,Graccho Cardoso,28,-10.2252,-37.2006
 2802700,Ilha das Flores,28,-10.4425,-36.5479
 2802809,Indiaroba,28,-11.5157,-37.515
 2802908,Itabaiana,28,-10.6826,-37.4273
@@ -1850,7 +1850,7 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 2901908,Aporá,29,-11.6577,-38.0814
 2901957,Apuarema,29,-13.8542,-39.7501
 2902005,Aracatu,29,-14.428,-41.4648
-2902054,Araças,29,-12.22,-38.2027
+2902054,Araçás,29,-12.22,-38.2027
 2902104,Araci,29,-11.3253,-38.9584
 2902203,Aramari,29,-12.0884,-38.4969
 2902252,Arataca,29,-15.2651,-39.419
@@ -2030,7 +2030,7 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 2917102,Itororó,29,-15.11,-40.0684
 2917201,Ituaçu,29,-13.8107,-41.3003
 2917300,Ituberá,29,-13.7249,-39.1481
-2917334,Iuiú,29,-14.4054,-43.5595
+2917334,Iuiu,29,-14.4054,-43.5595
 2917359,Jaborandi,29,-13.6071,-44.4255
 2917409,Jacaraci,29,-14.8541,-42.4329
 2917508,Jacobina,29,-11.1812,-40.5117
@@ -2094,7 +2094,7 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 2922052,Mulungu do Morro,29,-11.9648,-41.6374
 2922102,Mundo Novo,29,-11.8541,-40.4714
 2922201,Muniz Ferreira,29,-13.0092,-39.1092
-2922250,Muquém de São Francisco,29,-12.065,-43.5497
+2922250,Muquém do São Francisco,29,-12.065,-43.5497
 2922300,Muritiba,29,-12.6329,-38.9921
 2922409,Mutuípe,29,-13.2284,-39.5044
 2922508,Nazaré,29,-13.0235,-39.0108
@@ -2173,7 +2173,7 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 2928208,Santana,29,-12.9792,-44.0506
 2928307,Santanópolis,29,-12.0311,-38.8694
 2928406,Santa Rita de Cássia,29,-11.0063,-44.5255
-2928505,Santa Teresinha,29,-12.7697,-39.5215
+2928505,Santa Terezinha,29,-12.7697,-39.5215
 2928604,Santo Amaro,29,-12.5472,-38.7137
 2928703,Santo Antônio de Jesus,29,-12.9614,-39.2584
 2928802,Santo Estêvão,29,-12.428,-39.2505
@@ -2302,7 +2302,7 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 3105202,Bandeira,31,-15.8783,-40.5622
 3105301,Bandeira do Sul,31,-21.7308,-46.3833
 3105400,Barão de Cocais,31,-19.9389,-43.4755
-3105509,Barão de Monte Alto,31,-21.2444,-42.2372
+3105509,Barão do Monte Alto,31,-21.2444,-42.2372
 3105608,Barbacena,31,-21.2214,-43.7703
 3105707,Barra Longa,31,-20.2869,-43.0402
 3105905,Barroso,31,-21.1907,-43.972
@@ -2498,7 +2498,7 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 3122603,Dom Joaquim,31,-18.961,-43.2544
 3122702,Dom Silvério,31,-20.1627,-42.9627
 3122801,Dom Viçoso,31,-22.2511,-45.1643
-3122900,Dona Eusébia,31,-21.319,-42.807
+3122900,Dona Euzébia,31,-21.319,-42.807
 3123007,Dores de Campos,31,-21.1139,-44.0207
 3123106,Dores de Guanhães,31,-19.0516,-42.9254
 3123205,Dores do Indaiá,31,-19.4628,-45.5927
@@ -2772,7 +2772,7 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 3145356,Novo Oriente de Minas,31,-17.4089,-41.2194
 3145372,Novorizonte,31,-16.0162,-42.4044
 3145406,Olaria,31,-21.8598,-43.9356
-3145455,Olhos d'Água,31,-17.3982,-43.5719
+3145455,Olhos-d'Água,31,-17.3982,-43.5719
 3145505,Olímpio Noronha,31,-22.0685,-45.2657
 3145604,Oliveira,31,-20.6982,-44.829
 3145703,Oliveira Fortes,31,-21.3401,-43.4499
@@ -2800,7 +2800,7 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 3147501,Passabém,31,-19.3509,-43.1383
 3147600,Passa Quatro,31,-22.3871,-44.9709
 3147709,Passa Tempo,31,-20.6539,-44.4926
-3147808,Passa-Vinte,31,-22.2097,-44.2344
+3147808,Passa Vinte,31,-22.2097,-44.2344
 3147907,Passos,31,-20.7193,-46.609
 3147956,Patis,31,-16.0773,-44.0787
 3148004,Patos de Minas,31,-18.5699,-46.5013
@@ -3007,7 +3007,7 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 3164902,São Sebastião do Rio Verde,31,-22.2183,-44.9761
 3165008,São Tiago,31,-20.9075,-44.5098
 3165107,São Tomás de Aquino,31,-20.7791,-47.0962
-3165206,São Thomé das Letras,31,-21.7218,-44.9849
+3165206,São Tomé das Letras,31,-21.7218,-44.9849
 3165305,São Vicente de Minas,31,-21.7042,-44.4431
 3165404,Sapucaí-Mirim,31,-22.7409,-45.738
 3165503,Sardoá,31,-18.7828,-42.3629
@@ -3105,7 +3105,7 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 3200409,Anchieta,32,-20.7955,-40.6425
 3200508,Apiacá,32,-21.1523,-41.5693
 3200607,Aracruz,32,-19.82,-40.2764
-3200706,Atilio Vivacqua,32,-20.913,-41.1986
+3200706,Atílio Vivácqua,32,-20.913,-41.1986
 3200805,Baixo Guandu,32,-19.5213,-41.0109
 3200904,Barra de São Francisco,32,-18.7548,-40.8965
 3201001,Boa Esperança,32,-18.5395,-40.3025
@@ -3340,7 +3340,7 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 3506359,Bertioga,35,-23.8486,-46.1396
 3506409,Bilac,35,-21.404,-50.4746
 3506508,Birigui,35,-21.291,-50.3432
-3506607,Biritiba-Mirim,35,-23.5698,-46.0407
+3506607,Biritiba Mirim,35,-23.5698,-46.0407
 3506706,Boa Esperança do Sul,35,-21.9918,-48.3906
 3506805,Bocaina,35,-22.1365,-48.523
 3506904,Bofete,35,-23.1055,-48.2582
@@ -3450,7 +3450,7 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 3515806,Flora Rica,35,-21.6727,-51.3821
 3515905,Floreal,35,-20.6752,-50.1513
 3516002,Flórida Paulista,35,-21.6127,-51.1724
-3516101,Florínia,35,-22.868,-50.6814
+3516101,Florínea,35,-22.868,-50.6814
 3516200,Franca,35,-20.5352,-47.4039
 3516309,Francisco Morato,35,-23.2792,-46.7448
 3516408,Franco da Rocha,35,-23.3229,-46.729
@@ -3519,7 +3519,7 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 3521903,Itajobi,35,-21.3123,-49.0629
 3522000,Itaju,35,-21.9857,-48.8116
 3522109,Itanhaém,35,-24.1736,-46.788
-3522158,Itaóca,35,-24.6393,-48.8413
+3522158,Itaoca,35,-24.6393,-48.8413
 3522208,Itapecerica da Serra,35,-23.7161,-46.8572
 3522307,Itapetininga,35,-23.5886,-48.0483
 3522406,Itapeva,35,-23.9788,-48.8764
@@ -4407,7 +4407,7 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 4205803,Garuva,42,-26.0292,-48.852
 4205902,Gaspar,42,-26.9336,-48.9534
 4206009,Governador Celso Ramos,42,-27.3172,-48.5576
-4206108,Grão Pará,42,-28.1809,-49.2252
+4206108,Grão-Pará,42,-28.1809,-49.2252
 4206207,Gravatal,42,-28.3208,-49.0427
 4206306,Guabiruba,42,-27.0808,-48.9804
 4206405,Guaraciaba,42,-26.6042,-53.5243
@@ -4454,7 +4454,7 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 4209409,Laguna,42,-28.4843,-48.7772
 4209458,Lajeado Grande,42,-26.8576,-52.5648
 4209508,Laurentino,42,-27.2173,-49.7331
-4209607,Lauro Muller,42,-28.3859,-49.4035
+4209607,Lauro Müller,42,-28.3859,-49.4035
 4209706,Lebon Régis,42,-26.928,-50.6921
 4209805,Leoberto Leal,42,-27.5081,-49.2789
 4209854,Lindóia do Sul,42,-27.0545,-52.069
@@ -4550,7 +4550,7 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 4215802,São Bento do Sul,42,-26.2495,-49.3831
 4215901,São Bonifácio,42,-27.9009,-48.9326
 4216008,São Carlos,42,-27.0798,-53.0037
-4216057,São Cristovão do Sul,42,-27.2666,-50.4388
+4216057,São Cristóvão do Sul,42,-27.2666,-50.4388
 4216107,São Domingos,42,-26.5548,-52.5313
 4216206,São Francisco do Sul,42,-26.2579,-48.6344
 4216255,São João do Oeste,42,-27.0984,-53.5977
@@ -5302,7 +5302,7 @@ codigo_ibge,nome,codigo_uf,latitude,longitude
 5107768,Santa Rita do Trivelato,51,-13.8146,-55.2706
 5107776,Santa Terezinha,51,-10.4704,-50.514
 5107792,Santo Antônio do Leste,51,-14.805,-53.6075
-5107800,Santo Antônio do Leverger,51,-15.8632,-56.0788
+5107800,Santo Antônio de Leverger,51,-15.8632,-56.0788
 5107859,São Félix do Araguaia,51,-11.615,-50.6706
 5107875,Sapezal,51,-12.9892,-58.7645
 5107883,Serra Nova Dourada,51,-12.0896,-51.4025

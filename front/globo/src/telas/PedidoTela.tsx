@@ -94,6 +94,17 @@ export function PedidoTela({ id }: { id: string }) {
   const temFazendas = fazendas.length > 0
   const brasil = useCarga(() => temFazendas ? fonte.geo.brasil() : Promise.resolve(null), [temFazendas])
 
+  async function solicitar(opcao: IdOpcao) {
+    setOcupado(true)
+    try {
+      setPedido(await pedidos.solicitarInteresse(id, opcao))
+    } catch (e) {
+      setErro((e as Error).message)
+    } finally {
+      setOcupado(false)
+    }
+  }
+
   async function mudar(acao: "tirar" | "trocar", cod: string, por?: string) {
     if (!pedido) return
     setOcupado(true)
@@ -202,10 +213,12 @@ export function PedidoTela({ id }: { id: string }) {
 
           {!pedido.opcao_escolhida ? (
             <section className="secao-painel" aria-labelledby="solicitar-titulo">
-              <h2 id="solicitar-titulo">Contato somente na fase final</h2>
-              <p>Primeiro compare os lotes e confira o que falta resolver. O contato com os donos fica para a fase final, pela Raíz. Nenhum nome, CPF ou contato aparece neste pedido.</p>
-              <button type="button" className="botao" disabled aria-describedby="contato-pendente">Solicitar interesse dos donos</button>
-              <p id="contato-pendente" className="legenda-frase">Esta etapa ainda não inicia contatos.</p>
+              <h2 id="solicitar-titulo">{pedido.exemplo ? "Busca de interesse dos donos" : "Contato somente na fase final"}</h2>
+              <p>{pedido.exemplo
+                ? "Na demonstração, as ondas correm em segundos e nenhum contato real é enviado. Nome, CPF e telefone do dono não aparecem."
+                : "Primeiro compare os lotes e confira o que falta resolver. O contato com os donos fica para a fase final, pela Raíz. Nenhum nome, CPF ou contato aparece neste pedido."}</p>
+              <button type="button" className="botao" disabled={!pedido.exemplo || ocupado} aria-describedby={pedido.exemplo ? undefined : "contato-pendente"} onClick={() => { if (pedido.exemplo) void solicitar(aba) }}>Solicitar interesse dos donos</button>
+              {!pedido.exemplo && <p id="contato-pendente" className="legenda-frase">Esta etapa ainda não inicia contatos.</p>}
             </section>
           ) : (
             <PainelAndamento pedido={pedido} andamento={andamento} unidade={unidade} />

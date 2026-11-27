@@ -566,11 +566,11 @@ def estados_brasil() -> None:
 
 
 def atualizar_malha_ibge(publicados: dict[str, Path]) -> None:
-    """Município novo exige a UF inteira da mesma edição, nunca um enxerto sobre seus municípios de origem.
+    """Toda UF com município publicado usa a Malha Municipal do IBGE, nunca um enxerto sobre a divisa antiga.
 
-    O TerraBrasilis pode ainda usar uma divisão anterior à DTB. Só as UFs com lacuna são promovidas à edição
-    mais recente da Malha Municipal Digital do IBGE. As já promovidas reaplicam seu ZIP conferido, inclusive
-    após uma interrupção entre gravações ou reconstrução do cache TerraBrasilis. CAR e bases não são apagados.
+    O TerraBrasilis pode ter o código e ainda assim a divisão anterior à DTB. A UF inteira é trocada pela
+    edição oficial, para o município novo entrar junto com quem cedeu território. As já promovidas reaplicam
+    o ZIP conferido, inclusive após uma interrupção. CAR e bases não são apagados.
     """
     import geopandas as gpd
 
@@ -581,9 +581,13 @@ def atualizar_malha_ibge(publicados: dict[str, Path]) -> None:
     cache = SAIDA / "cache"
     registro = cache / "malhas-ibge-v1.json"
     malhas = json.loads(registro.read_text()) if registro.exists() else {}
-    novas_ufs = {UF_IBGE[cod[:2]] for cod in faltantes}
     if not isinstance(malhas, dict) or any(uf not in UF_IBGE.values() for uf in malhas):
         raise ValueError("registro de malhas IBGE contém UF inválida")
+    # O TerraBrasilis pode ter o código e ainda assim a divisa antiga. Toda UF com município publicado
+    # passa para a Malha Municipal do IBGE; o registro evita baixar o mesmo ZIP de novo.
+    novas_ufs = {UF_IBGE[cod[:2]] for cod in publicados if cod[:2] in UF_IBGE}
+    if faltantes:
+        novas_ufs |= {UF_IBGE[cod[:2]] for cod in faltantes if cod[:2] in UF_IBGE}
     if not novas_ufs and not malhas:
         return
     ano_recente = None
@@ -619,7 +623,11 @@ def atualizar_malha_ibge(publicados: dict[str, Path]) -> None:
             raise ValueError(f"registro inválido da malha IBGE de {uf}")
         ano = anterior["ano"] if anterior else edicao_recente()
         prefixo = next(c for c, sigla in UF_IBGE.items() if sigla == uf)
-        esperados = {cod for cod in existentes | set(publicados) if cod.startswith(prefixo)}
+        # A malha nova substitui a UF inteira. Código antigo que só existia no TerraBrasilis não trava a troca;
+        # todo código já publicado precisa estar na edição do IBGE.
+        esperados = {cod for cod in set(publicados) if cod.startswith(prefixo)} or {
+            cod for cod in existentes if cod.startswith(prefixo)
+        }
         # Tenta a edição registrada antes de consultar a rede: reconstruir uma saída não exige fonte nova.
         for tentativa in range(2):
             nome = f"{uf}_Municipios_{ano}.zip"

@@ -5,9 +5,9 @@ name: Aliviar o arquivo privado (limite de 1000 arquivos)
 # mais (relatórios de catálogo, cópias de migração e checkpoints soltos). Nada sai sem cópia conferida.
 # Checkpoints ficam num Release próprio (dados-privados-checkpoints), aliviado do mesmo jeito.
 # Autorizado pelo fundador em 14/11/2026.
+# Agenda de hora em hora removida em 27/11/2026, com o processamento parado.
+# Rode à mão se o Release dados-privados chegar perto de 1000 arquivos.
 on:
-  schedule:
-    - cron: "47 * * * *"
   workflow_dispatch:
 
 permissions:

@@ -1,138 +1,16 @@
 name: Agente real semanal
 
-# Agenda semanal desligada enquanto a Raíz não tem servidor no ar (decisão do fundador, 16/11/2026): sem servidor a
-# medição falha toda semana e gasta créditos da API. Religar o schedule quando o servidor subir; à mão continua valendo.
+# Desligado em 27/11/2026: a medição chamava a API paga da Anthropic. O Bernardo não autoriza esse gasto.
+# O histórico do git guarda a campanha anterior. Não recolocar o segredo sem ordem explícita.
 on:
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: agentes-real
-  cancel-in-progress: false
-
 jobs:
   medir:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - name: Preparar relatório de preparação incompleta
-        run: |
-          mkdir -p .cache/agentes-status
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          Path('.cache/agentes-status/relatorio.json').write_text(json.dumps({
-              'aprovado': False, 'estado': 'incompleta', 'etapa': 'preparacao_da_pilha',
-              'tarefas': 24, 'tentativas_planejadas': 96, 'tentativas_concluidas': 0,
-              'pass4': None, 'passos': 0, 'segundos': 0, 'chamadas_proibidas': 0,
-          }, ensure_ascii=False, indent=2) + '\n')
-          PY
-      - name: Exigir a credencial do agente real
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        shell: bash
-        run: |
-          if [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "::error::Configure o segredo ANTHROPIC_API_KEY no repositório. A medição real não foi executada."
-            exit 1
-          fi
-      - uses: astral-sh/setup-uv@v7
-        with:
-          version: "0.13.6"
-          enable-cache: true
-          cache-dependency-glob: uv.lock
-      - name: Dependências travadas
-        run: uv sync --frozen
-      - name: Subir pilha sintética isolada
-        run: uv run python -m scripts.pilha_agentes teste --env-file .env.agentes-teste
-      - name: Conferir se o servidor MCP está no ar
-        id: servidor
-        run: |
-          # Enquanto não houver servidor (a API da pilha não sobe ou não responde), a medição fica pulada:
-          # o job termina verde, com aviso e relatório "pulado", e não gasta a credencial nem o tempo da campanha.
-          url=$(grep -E '^RAIZ_MCP_RESOURCE=' .env.agentes-teste | head -1 | cut -d= -f2-)
-          no_ar=1
-          for tentativa in $(seq 1 12); do
-            codigo=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "${url%/mcp}/saude" || true)
-            [ "$codigo" = "000" ] && codigo=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$url/" || true)
-            # qualquer resposta HTTP abaixo de 500 (inclusive 401 do OAuth) prova que o servidor está de pé
-            if [ "$codigo" != "000" ] && [ "$codigo" -lt 500 ]; then no_ar=0; break; fi
-            sleep 10
-          done
-          echo "no_ar=$no_ar" >> "$GITHUB_OUTPUT"
-          if [ "$no_ar" = "1" ]; then
-            echo "::warning title=Agente real pulado::Sem servidor MCP no ar; a medição semanal não foi executada."
-            echo "Medição do agente real **pulada**: não há servidor MCP no ar. Nenhuma tarefa foi executada." >> "$GITHUB_STEP_SUMMARY"
-            python - <<'PY'
-          import json
-          from pathlib import Path
-          Path('.cache/agentes-status/relatorio.json').write_text(json.dumps({
-              'aprovado': None, 'estado': 'pulado', 'etapa': 'servidor_mcp_fora_do_ar',
-              'tarefas': 24, 'tentativas_planejadas': 96, 'tentativas_concluidas': 0,
-              'pass4': None, 'passos': 0, 'segundos': 0, 'chamadas_proibidas': 0,
-          }, ensure_ascii=False, indent=2) + '\n')
-          PY
-          fi
-      - name: Claude por MCP, 24 tarefas em quatro sessões independentes
-        if: steps.servidor.outputs.no_ar != '1'
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: |
-          mkdir -p .cache/agentes-real
-          fim=".cache/agentes-campanha-encerrada"
-          uv run python -m scripts.pilha_agentes medir --teste --env-file .env.agentes-teste \
-            --saida .cache/agentes-real/recursos.json --amostras 720 --intervalo 10 \
-            --ate-arquivo "$fim" &
-          medidor_pid=$!
-          trap 'touch "$fim"; wait "$medidor_pid" || true' EXIT
-          codigo=0
-          uv run python -m scripts.avaliar_agente_real \
-            --provider scripts.cenarios_agentes:provedor \
-            --modelo claude-sonnet-5-5 --modo real \
-            --cassetes .cache/agentes-real/cassetes --saida .cache/agentes-real \
-            --campanha semanal-${{ github.run_id }}-${{ github.run_attempt }} || codigo=$?
-          touch "$fim"
-          wait "$medidor_pid"
-          trap - EXIT
-          exit "$codigo"
-      - name: Conferir que as evidências exportáveis não contêm segredos nem raciocínio bruto
-        id: evidencias
-        if: always() && steps.servidor.outputs.no_ar != '1' && hashFiles('.cache/agentes-real/*.json', '.cache/agentes-real/*.jsonl', '.cache/agentes-real/cassetes/*.yaml') != ''
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: >-
-          uv run python -m scripts.verificar_evidencias_agentes
-          --saida .cache/agentes-real --cassetes .cache/agentes-real/cassetes
-      - name: Guardar somente as evidências sanitizadas para revisão e replay
-        if: always() && steps.evidencias.outcome == 'success'
-        uses: actions/upload-artifact@v7
-        with:
-          name: medicao-agente-real
-          path: |
-            .cache/agentes-real/relatorio.json
-            .cache/agentes-real/execucoes.jsonl
-            .cache/agentes-real/configuracao.json
-            .cache/agentes-real/trace-*.json
-            .cache/agentes-real/cassetes/*.yaml
-            .cache/agentes-real/recursos.json
-          retention-days: 30
-          # Somente os arquivos conferidos acima; .cache não deve ocultar a evidência.
-          include-hidden-files: true
-          if-no-files-found: error
-      - name: Guardar diagnóstico quando a medição não chegou a iniciar
-        if: always() && hashFiles('.cache/agentes-real/relatorio.json') == ''
-        uses: actions/upload-artifact@v7
-        with:
-          name: medicao-agente-nao-iniciada
-          path: .cache/agentes-status/relatorio.json
-          include-hidden-files: true
-          retention-days: 30
-          if-no-files-found: error
-      - name: Encerrar a pilha local
-        if: always() && hashFiles('.env.agentes-teste') != ''
-        run: uv run python -m scripts.pilha_agentes parar --teste --env-file .env.agentes-teste
+      - name: API paga desligada
+        run: echo "API paga desligada. Este workflow não chama a Anthropic."
