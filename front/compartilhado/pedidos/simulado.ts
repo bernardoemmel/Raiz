@@ -47,6 +47,7 @@ export function pedidoDemonstracao(campos: CamposPedido = structuredClone(CAMPOS
 export function fontePedidosSimulada(armazenamento?: ReturnType<typeof guarda>): FontePedidos {
   let pedido = pedidoDemonstracao()
   let iniciada = false
+  let inicioBusca: number | null = null
   const responder = (corpo: unknown, status = 200) => new Response(JSON.stringify(corpo), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } })
   const transporte: typeof fetch = async (entrada, init) => {
     const caminho = new URL(String(entrada)).pathname.replace(/^\//, "")
@@ -84,7 +85,38 @@ export function fontePedidosSimulada(armazenamento?: ReturnType<typeof guarda>):
       }
       return responder(pedido)
     }
-    // Nem a demonstração inicia contato ou cobrança, ainda que chamada fora da interface.
+    // A demonstração corre as ondas na tela, com fazendas fictícias. Não há contato real nem cobrança.
+    if (caminho === "pedidos/demonstracao/solicitar-interesse" && init?.method === "POST") {
+      const opcao = (corpo as { opcao?: IdOpcao } | null)?.opcao
+      if (!opcao || !IDS.includes(opcao)) return responder({ erro: "Opção desconhecida." }, 400)
+      pedido = { ...pedido, opcao_escolhida: opcao, status: "buscando_interesse" }
+      inicioBusca = Date.now()
+      return responder(pedido)
+    }
+    if (caminho === "pedidos/demonstracao/andamento") {
+      if (inicioBusca === null || !pedido.opcao_escolhida) return responder({ erro: "A busca ainda não começou." }, 404)
+      const escolhida = pedido.opcoes.find((o) => o.id === pedido.opcao_escolhida)
+      if (!escolhida) return responder({ erro: "Opção desconhecida." }, 400)
+      const pronto = Date.now() - inicioBusca >= 700
+      if (pronto) pedido = { ...pedido, status: "grupo_pronto" }
+      return responder({
+        pedido: pedido.id,
+        status: pronto ? "grupo_pronto" : "buscando_interesse",
+        meta: pedido.campos.meta.valor,
+        com_interessado: pronto ? escolhida.creditos.p50 : 0,
+        com_aceite: 0,
+        com_contrato: 0,
+        ondas: [{ numero: 1, data: new Date(inicioBusca).toISOString(), contatados: escolhida.fazendas, canais: ["demonstração"] }],
+        contatados: escolhida.fazendas,
+        recusas: 0,
+        sem_resposta: pronto ? 0 : escolhida.fazendas,
+        motivos: [],
+        fazendas: escolhida.itens.map((f) => ({ ...f, interesse: pronto ? "interessado" : "contatado" })),
+        grupo_pronto_em: pronto ? new Date(inicioBusca + 700).toISOString() : null,
+        proxima_onda_em: pronto ? null : new Date(inicioBusca + 700).toISOString(),
+        faltou: null,
+      })
+    }
     return responder({ erro: "Etapa indisponível na demonstração." }, 409)
   }
   const api = fontePedidosApi("https://demonstracao.invalid/", { transporte, chaveSessao: CHAVE_DEMONSTRACAO, armazenamento })
